@@ -10,7 +10,7 @@ export default function CartPage() {
 
   // États
   const [selectedShipping, setSelectedShipping] = useState(shippingOptions[0]);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("wave");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash"); // uniquement cash
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -86,7 +86,7 @@ export default function CartPage() {
     }
   };
 
-  // Soumission commande - Utilisation des tables orders2 et order_items2
+  // Soumission commande - paiement à la livraison uniquement
   const handleOrderSubmit = async () => {
     if (state.cart.length === 0) {
       alert("Votre panier est vide.");
@@ -117,7 +117,7 @@ export default function CartPage() {
             address: `${address}, ${city}, ${region || "Sénégal"}`,
             total,
             delivery_fee: shippingCost,
-            is_paid: selectedPaymentMethod === "wave" ? false : true,
+            is_paid: false, // paiement à la livraison
             status: "pending",
             created_at: new Date().toISOString(),
           },
@@ -380,44 +380,15 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* Paiement */}
+              {/* Paiement - uniquement à la livraison */}
               <div className="mb-6">
                 <h4 className="text-lg font-medium mb-4">Mode de paiement</h4>
-                <div className="space-y-3">
-                  <div
-                    className={`p-3 border rounded-lg cursor-pointer ${
-                      selectedPaymentMethod === "cash"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                    onClick={() => setSelectedPaymentMethod("cash")}
-                  >
-                    <div className="flex items-center">
-                      <span className="font-medium">Paiement à la livraison</span>
-                    </div>
+                <div className="p-3 border border-blue-500 bg-blue-50 rounded-lg">
+                  <div className="flex items-center">
+                    <span className="font-medium">Paiement à la livraison (espèces)</span>
                   </div>
-
-                  <div
-                    className={`p-3 border rounded-lg cursor-pointer ${
-                      selectedPaymentMethod === "wave"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                    onClick={() => setSelectedPaymentMethod("wave")}
-                  >
-                    <div className="flex items-center">
-                      <img
-                        src="/images/wave.png"
-                        alt="Wave"
-                        className="w-6 h-6 mr-3"
-                      />
-                      <div>
-                        <div className="font-medium">Paiement en ligne (Wave)</div>
-                        <div className="text-sm text-gray-500">
-                          Payez via l'application Wave
-                        </div>
-                      </div>
-                    </div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    Vous payez à la réception de votre commande
                   </div>
                 </div>
               </div>
@@ -458,10 +429,6 @@ export default function CartPage() {
                     return;
                   }
                   await handleOrderSubmit();
-                  if (selectedPaymentMethod === "wave") {
-                    window.location.href =
-                      "https://pay.wave.com/m/M_sn_IiZxGQTv4q2_/c/sn/";
-                  }
                 }}
                 className={`w-full bg-blue-800 text-white py-4 rounded-lg font-medium hover:bg-blue-900 mt-6 ${
                   isLoading ? "opacity-70 cursor-not-allowed" : ""
