@@ -15,7 +15,7 @@ export default function Header({}: HeaderProps) {
   const navigate = useNavigate();
 
   const cartItemsCount = state.cart.reduce((total, item) => total + item.quantity, 0);
-  const VENDOR_CODE = 'ABz123'; // Code pour l'accès Espace Vendeur
+  const VENDOR_CODE = 'AB123'; // Code pour l'accès Espace Vendeur
 
   // --- Persistance vue dans localStorage ---
   useEffect(() => {
