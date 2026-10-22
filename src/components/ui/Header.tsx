@@ -381,22 +381,22 @@ export default function Header({}: HeaderProps) {
         </div>
       )}
 
-      {/* 3. Menu Drawer (Mobile & Desktop) - NOUVEAU DESIGN */}
+      {/* 3. Menu Drawer (Mobile & Desktop) */}
       {isMenuOpen && (
         <>
           {/* Overlay sombre derrière le menu */}
           <div className="fixed inset-0 bg-black/40 z-40 animate-fade-in" onClick={closeMenu}></div>
           
           {/* Tiroir du menu */}
-          <div className="fixed top-0 left-0 h-full w-[280px] sm:w-[320px] bg-white z-50 shadow-2xl flex flex-col animate-slide-in">
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div className="fixed top-0 left-0 h-[100dvh] w-[280px] sm:w-[320px] bg-white z-50 shadow-2xl flex flex-col animate-slide-in">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between shrink-0">
               <span className="font-semibold text-lg text-[#4A3224]">Menu</span>
               <button onClick={closeMenu} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-2">
+            <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-2 pb-24">
               <Link to="/" onClick={closeMenu} className="flex items-center gap-3 px-4 py-3 text-base font-medium text-gray-700 rounded-lg hover:bg-[#BCDAED]/30 hover:text-[#4A3224] transition-colors">
                 Accueil
               </Link>
@@ -423,13 +423,17 @@ export default function Header({}: HeaderProps) {
                   <form onSubmit={handleSubmitCode} className="mt-4 flex flex-col gap-3 animate-fade-in">
                     <input
                       type="password"
-                      placeholder="Code vendeur (ex: AB123)"
+                      placeholder="Code vendeur )"
                       value={code}
                       onChange={(e) => setCode(e.target.value)}
-                      className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BB8D6]"
+                      /* text-base (16px) empêche iOS de zoomer automatiquement */
+                      className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BB8D6] appearance-none"
                       autoComplete="off"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      spellCheck="false"
                     />
-                    <button type="submit" className="w-full px-4 py-2.5 bg-[#8BB8D6] text-white text-sm font-medium rounded-lg hover:bg-[#7aa7c4] transition-colors">
+                    <button type="submit" className="w-full px-4 py-3 bg-[#8BB8D6] text-white text-sm font-medium rounded-lg hover:bg-[#7aa7c4] transition-colors">
                       Valider
                     </button>
                   </form>
