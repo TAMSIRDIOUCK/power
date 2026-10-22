@@ -1,6 +1,6 @@
 // src/components/ui/Header.tsx
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, Menu, X, ShoppingCart, TrendingUp, Clock, User, LogOut } from 'lucide-react';
+import { Search, Menu, X, ShoppingCart, Clock, User, LogOut, Lock } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -87,12 +87,15 @@ function Highlight({ text, query }: { text: string; query: string }) {
 
 export default function Header({}: HeaderProps) {
   const { state, dispatch } = useApp();
+  
+  // États Menu & Modale Vendeur
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [showVendorModal, setShowVendorModal] = useState(false); // Nouvelle modale
   const [code, setCode] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const navigate = useNavigate();
 
+  // États Recherche
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -103,6 +106,7 @@ export default function Header({}: HeaderProps) {
   const cartItemsCount = state.cart.reduce((total, item) => total + item.quantity, 0);
   const VENDOR_CODE = 'AB123';
 
+  // --- Persistance vue ---
   useEffect(() => {
     const savedView = localStorage.getItem('currentView') as 'customer' | 'vendor' | null;
     if (savedView === 'customer' || savedView === 'vendor') {
@@ -114,6 +118,7 @@ export default function Header({}: HeaderProps) {
     localStorage.setItem('currentView', state.currentView);
   }, [state.currentView]);
 
+  // --- Alertes ---
   useEffect(() => {
     if (alertMessage) {
       const timer = setTimeout(() => setAlertMessage(''), 3000);
@@ -121,6 +126,7 @@ export default function Header({}: HeaderProps) {
     }
   }, [alertMessage]);
 
+  // --- Historique de recherche ---
   useEffect(() => {
     try {
       const saved = localStorage.getItem('recentSearches');
@@ -128,6 +134,7 @@ export default function Header({}: HeaderProps) {
     } catch { /* ignore */ }
   }, []);
 
+  // --- Focus recherche ---
   useEffect(() => {
     if (isSearchOpen) {
       const t = setTimeout(() => searchInputRef.current?.focus(), 100);
@@ -138,6 +145,7 @@ export default function Header({}: HeaderProps) {
     }
   }, [isSearchOpen]);
 
+  // --- Fermer recherche au clic extérieur ---
   useEffect(() => {
     if (!isSearchOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -149,6 +157,7 @@ export default function Header({}: HeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isSearchOpen]);
 
+  // --- Raccourcis clavier ---
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -158,12 +167,14 @@ export default function Header({}: HeaderProps) {
       if (e.key === 'Escape') {
         setIsSearchOpen(false);
         setIsMenuOpen(false);
+        setShowVendorModal(false);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  // --- Produits pour la recherche ---
   const products: SearchResult[] = useMemo(() => {
     const raw = (state as any).products;
     if (!Array.isArray(raw)) return [];
@@ -221,32 +232,33 @@ export default function Header({}: HeaderProps) {
     }
   };
 
+  // --- Logique Vendeur (CORRIGÉE) ---
+  const handleOpenVendorModal = () => {
+    if (state.currentView === 'vendor') {
+      // Si déjà vendeur, on repasse en client
+      dispatch({ type: 'SET_VIEW', payload: 'customer' });
+      closeMenu();
+    } else {
+      // Sinon, on ouvre la modale centrée
+      setShowVendorModal(true);
+      setIsMenuOpen(false); // On ferme le menu pour laisser place à la modale
+    }
+  };
+
   const handleSubmitCode = (e: React.FormEvent) => {
     e.preventDefault();
     if (code === VENDOR_CODE) {
       dispatch({ type: 'SET_VIEW', payload: 'vendor' });
       setAlertMessage('Bienvenue dans l’Espace Vendeur !');
-      setShowCodeInput(false);
+      setShowVendorModal(false);
       setCode('');
-      closeMenu();
     } else {
-      setAlertMessage("Accès refusé. Tu n'es pas un vendeur !");
-    }
-  };
-
-  const handleToggleViewClick = () => {
-    if (state.currentView === 'customer') {
-      setShowCodeInput(true);
-    } else {
-      dispatch({ type: 'SET_VIEW', payload: 'customer' });
-      closeMenu();
+      setAlertMessage("Accès refusé. Code incorrect.");
     }
   };
 
   const closeMenu = () => {
     setIsMenuOpen(false);
-    setShowCodeInput(false);
-    setCode('');
   };
 
   const scrollToFooter = (e: React.MouseEvent) => {
@@ -279,7 +291,6 @@ export default function Header({}: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           
-          {/* Bouton Menu (Gauche) */}
           <button
             onClick={() => {
               if (isMenuOpen) closeMenu();
@@ -291,12 +302,10 @@ export default function Header({}: HeaderProps) {
             {isMenuOpen ? <X className="w-6 h-6" strokeWidth={1.5} /> : <Menu className="w-6 h-6" strokeWidth={1.5} />}
           </button>
 
-          {/* Logo */}
           <div className="flex-1 flex justify-center cursor-pointer" onClick={() => navigate('/')}>
             <img src="/images/m.jpg" alt="Maison M Store" className="h-16 sm:h-14 w-auto object-contain" />
           </div>
 
-          {/* Icônes (Droite) */}
           <div className="flex items-center space-x-3 sm:space-x-5">
             <button
               onClick={() => {
@@ -381,13 +390,11 @@ export default function Header({}: HeaderProps) {
         </div>
       )}
 
-      {/* 3. Menu Drawer (Mobile & Desktop) */}
+      {/* 3. Menu Drawer */}
       {isMenuOpen && (
         <>
-          {/* Overlay sombre derrière le menu */}
           <div className="fixed inset-0 bg-black/40 z-40 animate-fade-in" onClick={closeMenu}></div>
           
-          {/* Tiroir du menu */}
           <div className="fixed top-0 left-0 h-[100dvh] w-[280px] sm:w-[320px] bg-white z-50 shadow-2xl flex flex-col animate-slide-in">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between shrink-0">
               <span className="font-semibold text-lg text-[#4A3224]">Menu</span>
@@ -396,7 +403,7 @@ export default function Header({}: HeaderProps) {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-2 pb-24">
+            <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-2">
               <Link to="/" onClick={closeMenu} className="flex items-center gap-3 px-4 py-3 text-base font-medium text-gray-700 rounded-lg hover:bg-[#BCDAED]/30 hover:text-[#4A3224] transition-colors">
                 Accueil
               </Link>
@@ -409,7 +416,7 @@ export default function Header({}: HeaderProps) {
 
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <button
-                  onClick={handleToggleViewClick}
+                  onClick={handleOpenVendorModal}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-[#4A3224] border border-[#4A3224] rounded-lg hover:bg-[#4A3224] hover:text-white transition-colors"
                 >
                   {state.currentView === 'customer' ? (
@@ -418,30 +425,60 @@ export default function Header({}: HeaderProps) {
                     <><LogOut className="w-4 h-4" /> Espace Client</>
                   )}
                 </button>
-
-                {showCodeInput && state.currentView === 'customer' && (
-                  <form onSubmit={handleSubmitCode} className="mt-4 flex flex-col gap-3 animate-fade-in">
-                    <input
-                      type="password"
-                      placeholder="Code vendeur )"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      /* text-base (16px) empêche iOS de zoomer automatiquement */
-                      className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BB8D6] appearance-none"
-                      autoComplete="off"
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      spellCheck="false"
-                    />
-                    <button type="submit" className="w-full px-4 py-3 bg-[#8BB8D6] text-white text-sm font-medium rounded-lg hover:bg-[#7aa7c4] transition-colors">
-                      Valider
-                    </button>
-                  </form>
-                )}
               </div>
             </div>
           </div>
         </>
+      )}
+
+      {/* 4. Modale Vendeur Centrée (LA CORRECTION EST ICI) */}
+      {showVendorModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-scale-in">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-[#BCDAED]/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Lock className="w-6 h-6 text-[#4A3224]" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Accès Vendeur</h2>
+              <p className="text-sm text-gray-500 mt-1">Entrez le code secret de la boutique</p>
+            </div>
+
+            <form onSubmit={handleSubmitCode} className="space-y-4">
+              <input
+                type="password"
+                placeholder="Code secret (ex: AB123)"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                // text-base = 16px empêche iOS de zoomer
+                className="w-full px-4 py-3 text-base border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BB8D6] text-center tracking-widest"
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck="false"
+                autoFocus
+              />
+              
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVendorModal(false);
+                    setCode('');
+                  }}
+                  className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-3 bg-[#8BB8D6] text-white font-medium rounded-xl hover:bg-[#7aa7c4] transition-colors shadow-sm"
+                >
+                  Valider
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Animations CSS */}
@@ -460,6 +497,9 @@ export default function Header({}: HeaderProps) {
 
         @keyframes searchSlide { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         .animate-search-slide { animation: searchSlide 0.2s ease-out forwards; }
+
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-scale-in { animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
       `}</style>
     </header>
   );
