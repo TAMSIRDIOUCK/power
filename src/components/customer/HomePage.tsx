@@ -92,7 +92,7 @@ export default function HomePage() {
       {/* Bannière principale - Format Paysage adaptatif (Mobile, Tablette, PC) */}
       <div className="w-full bg-white relative overflow-hidden">
         <img 
-          src="/images/images.png" 
+          src="/images/IMG_7711.jpg" 
           alt="Bannière Maison M" 
           /* 
             - h-[35vh] sur mobile (paysage)
