@@ -1,15 +1,17 @@
 // src/components/customer/ProductDetailPage.tsx
 import React, { useState } from 'react';
-import { ArrowLeft, ShoppingCart, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Minus, Plus, CreditCard, Tag } from 'lucide-react';
 import { Product } from '../../types';
 import { useApp } from '../../context/AppContext';
 
 interface ProductDetailPageProps {
   product: Product;
   onClose: () => void;
+  // Ouvre la page panier (à fournir par le composant parent, voir les explications)
+  onGoToCart: () => void;
 }
 
-export default function ProductDetailPage({ product, onClose }: ProductDetailPageProps) {
+export default function ProductDetailPage({ product, onClose, onGoToCart }: ProductDetailPageProps) {
   const { state, dispatch } = useApp();
   const [selectedVariant, setSelectedVariant] = useState(product.variants[0]);
   const [quantity, setQuantity] = useState(1);
@@ -22,31 +24,49 @@ export default function ProductDetailPage({ product, onClose }: ProductDetailPag
   const availableSizes = [...new Set(product.variants.filter(v => v.stock > 0).map(v => v.size))];
   const availableColors = [...new Set(product.variants.filter(v => v.stock > 0).map(v => v.color))];
 
-  const handleAddToCart = () => {
-    // Vérifier si le produit est déjà dans le panier
-    const exists = state.cart.some(
+  const hasPromo =
+    (product.discountPercent ?? 0) > 0 && (product.discountCodes?.length ?? 0) > 0;
+
+  const isInCart = () =>
+    state.cart.some(
       (item) => item.productId === product.id && item.variantId === selectedVariant.id
     );
 
-    if (exists) {
+  const addToCart = () => {
+    dispatch({
+      type: 'ADD_TO_CART',
+      payload: {
+        productId: product.id,
+        variantId: selectedVariant.id,
+        quantity,
+        product,
+        variant: selectedVariant
+      }
+    });
+  };
+
+  const handleAddToCart = () => {
+    if (isInCart()) {
       alert('Ce produit est déjà dans le panier !');
       return;
     }
 
     if (selectedVariant && selectedVariant.stock >= quantity) {
-      dispatch({
-        type: 'ADD_TO_CART',
-        payload: {
-          productId: product.id,
-          variantId: selectedVariant.id,
-          quantity,
-          product,
-          variant: selectedVariant
-        }
-      });
-
+      addToCart();
       alert(`${product.name} a été ajouté au panier !`);
     }
+  };
+
+  const handleBuyNow = () => {
+    if (!selectedVariant || selectedVariant.stock < quantity) return;
+
+    // Ajoute au panier seulement si le produit n'y est pas déjà
+    if (!isInCart()) {
+      addToCart();
+    }
+
+    // Redirection directe vers la page panier
+    onGoToCart();
   };
 
   const updateVariant = (size?: string, color?: string) => {
@@ -112,8 +132,19 @@ export default function ProductDetailPage({ product, onClose }: ProductDetailPag
                 </p>
               </div>
 
-              <div className="text-3xl font-bold text-blue-800">
-                {formatPrice(product.price)}
+              <div>
+                <div className="text-3xl font-bold text-blue-800">
+                  {formatPrice(product.price)}
+                </div>
+                {hasPromo && (
+                  <p className="mt-3 flex items-start gap-2 text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    <Tag className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>
+                      {product.discountPercent} % de réduction sur ce produit avec un code promo de la
+                      boutique. Saisissez-le dans le panier.
+                    </span>
+                  </p>
+                )}
               </div>
 
               {/* Taille */}
@@ -182,15 +213,26 @@ export default function ProductDetailPage({ product, onClose }: ProductDetailPag
                 </p>
               </div>
 
-              {/* Ajouter au panier */}
-              <button
-                onClick={handleAddToCart}
-                disabled={selectedVariant.stock === 0}
-                className="w-full bg-blue-800 text-white py-4 rounded-xl font-semibold hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                {selectedVariant.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}
-              </button>
+              {/* Boutons d'action */}
+              <div className="space-y-3">
+                <button
+                  onClick={handleAddToCart}
+                  disabled={selectedVariant.stock === 0}
+                  className="w-full bg-blue-800 text-white py-4 rounded-xl font-semibold hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  {selectedVariant.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}
+                </button>
+
+                <button
+                  onClick={handleBuyNow}
+                  disabled={selectedVariant.stock === 0}
+                  className="w-full border-2 border-blue-800 text-blue-800 py-4 rounded-xl font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  <CreditCard className="w-5 h-5 mr-2" />
+                  Acheter
+                </button>
+              </div>
             </div>
           </div>
         </div>

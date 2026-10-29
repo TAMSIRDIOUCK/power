@@ -1,11 +1,15 @@
 // src/components/customer/CartPage.tsx
 import { useState } from 'react';
-import { Plus, Minus, Trash2, CheckCircle, MessageCircle } from 'lucide-react';
+import { Plus, Minus, Trash2, CheckCircle, MessageCircle, Tag, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabaseClient';
+import { Product } from '../../types';
+import CountrySelect, { COUNTRIES, DEFAULT_COUNTRY_CODE } from './CountrySelect';
 
 // ⚠️ Numéro WhatsApp de la boutique (format international, sans + ni espaces)
 const VENDOR_WHATSAPP_NUMBER = '221711523274'; // ← À MODIFIER
+
+const normalizeCode = (code: string) => code.trim().toUpperCase().replace(/\s+/g, '');
 
 export default function CartPage() {
   const { state, dispatch } = useApp();
@@ -19,25 +23,94 @@ export default function CartPage() {
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [region, setRegion] = useState('');
 
+  // Codes promo
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedCodes, setAppliedCodes] = useState<string[]>([]);
+  const [promoMessage, setPromoMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
   const formatPrice = (price: number) =>
     new Intl.NumberFormat('fr-FR').format(price) + ' F CFA';
 
+  const country = COUNTRIES.find((c) => c.code === countryCode);
+
+  // ----- Réductions -----
+  // Un produit est remisé si la boutique a défini un pourcentage ET qu'un de ses codes a été saisi
+  const getDiscountPercent = (product: Product): number => {
+    const percent = product.discountPercent ?? 0;
+    if (percent <= 0 || !product.discountCodes?.length) return 0;
+    const unlocked = product.discountCodes.some((c) =>
+      appliedCodes.includes(normalizeCode(c))
+    );
+    return unlocked ? Math.min(percent, 100) : 0;
+  };
+
+  const getUnitPrice = (product: Product): number => {
+    const percent = getDiscountPercent(product);
+    return Math.round((product.price * (100 - percent)) / 100);
+  };
+
+  const applyPromoCode = () => {
+    const code = normalizeCode(promoInput);
+    if (!code) return;
+
+    if (appliedCodes.includes(code)) {
+      setPromoMessage({ type: 'error', text: 'Ce code est déjà appliqué.' });
+      return;
+    }
+
+    const matchingItems = state.cart.filter((item) =>
+      item.product.discountCodes?.some((c) => normalizeCode(c) === code)
+    );
+
+    if (matchingItems.length === 0) {
+      setPromoMessage({
+        type: 'error',
+        text: "Code invalide ou sans effet sur les articles de votre panier.",
+      });
+      return;
+    }
+
+    setAppliedCodes([...appliedCodes, code]);
+    setPromoInput('');
+    setPromoMessage({
+      type: 'success',
+      text: `Code ${code} appliqué à ${matchingItems.length} article${
+        matchingItems.length > 1 ? 's' : ''
+      }.`,
+    });
+  };
+
+  const removePromoCode = (code: string) => {
+    setAppliedCodes(appliedCodes.filter((c) => c !== code));
+    setPromoMessage(null);
+  };
+
   // Calculs panier
-  const subtotal = state.cart.reduce(
-    (total, item) => total + item.product.price * item.quantity,
+  const originalSubtotal = state.cart.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
     0
   );
+  const subtotal = state.cart.reduce(
+    (sum, item) => sum + getUnitPrice(item.product) * item.quantity,
+    0
+  );
+  const discountTotal = originalSubtotal - subtotal;
   const total = subtotal;
 
   // Vérifie si un produit en gros a une quantité < 15
   const hasInvalidWholesale = state.cart.some(
     (item) =>
-      item.product.category &&
-      item.product.category.toLowerCase().includes('gros') &&
+      (item.product.isWholesale ||
+        (item.product.category &&
+          item.product.category.toLowerCase().includes('gros'))) &&
       item.quantity < 15
   );
 
@@ -84,6 +157,9 @@ export default function CartPage() {
     }
   };
 
+  const fullAddress = () =>
+    [address, city, region, country?.name].filter(Boolean).join(', ');
+
   /**
    * Construit le message WhatsApp contenant toutes les infos de la commande
    */
@@ -97,15 +173,18 @@ export default function CartPage() {
     lines.push(`Nom : ${firstName} ${lastName}`);
     lines.push(`Téléphone : ${phone}`);
     if (email) lines.push(`Email : ${email}`);
-    lines.push(`Adresse : ${address}, ${city}${region ? `, ${region}` : ''}`);
+    lines.push(`Pays : ${country?.name ?? ''}`);
+    lines.push(`Adresse : ${[address, city, region].filter(Boolean).join(', ')}`);
     lines.push('');
     lines.push('🛒 *ARTICLES*');
 
     state.cart.forEach((item, i) => {
+      const percent = getDiscountPercent(item.product);
+      const unit = getUnitPrice(item.product);
       lines.push(
         `${i + 1}. ${item.product.name} — x${item.quantity} = ${formatPrice(
-          item.product.price * item.quantity
-        )}`
+          unit * item.quantity
+        )}${percent > 0 ? ` (-${percent} %)` : ''}`
       );
       const details: string[] = [];
       if (item.variant?.size) details.push(`Taille : ${item.variant.size}`);
@@ -114,6 +193,10 @@ export default function CartPage() {
     });
 
     lines.push('');
+    if (discountTotal > 0) {
+      lines.push(`🏷️ Codes promo : ${appliedCodes.join(', ')}`);
+      lines.push(`Réduction : -${formatPrice(discountTotal)}`);
+    }
     lines.push(`💰 *TOTAL : ${formatPrice(total)}*`);
     lines.push('');
     lines.push('💳 Paiement à la livraison (espèces)');
@@ -128,7 +211,7 @@ export default function CartPage() {
       alert('Votre panier est vide.');
       return;
     }
-    if (!firstName || !lastName || !phone || !address || !city) {
+    if (!firstName || !lastName || !phone || !countryCode || !address || !city) {
       alert('Veuillez remplir tous les champs obligatoires.');
       return;
     }
@@ -151,7 +234,7 @@ export default function CartPage() {
             last_name: lastName,
             phone,
             // email: email || null, // ⚠️ Retiré temporairement car non reconnu par le cache
-            address: `${address}, ${city}, ${region || 'Sénégal'}`,
+            address: fullAddress(),
             total,
             delivery_fee: 0,
             is_paid: false,
@@ -172,12 +255,12 @@ export default function CartPage() {
         return;
       }
 
-      // 2. Insertion des articles
+      // 2. Insertion des articles (prix unitaire après réduction)
       const itemsToInsert = state.cart.map((item) => ({
         order_id: orderData.id,
         product_id: item.product.id,
         product_name: item.product.name,
-        product_price: item.product.price,
+        product_price: getUnitPrice(item.product),
         quantity: item.quantity,
         variant_size: item.variant?.size || null,
         variant_color: item.variant?.color || null,
@@ -257,6 +340,9 @@ export default function CartPage() {
                 ),
               ];
 
+              const percent = getDiscountPercent(item.product);
+              const unitPrice = getUnitPrice(item.product);
+
               return (
                 <div
                   key={item.cartItemId}
@@ -281,9 +367,21 @@ export default function CartPage() {
                             {item.product.description}
                           </p>
                         </div>
-                        <p className="text-xl sm:text-2xl font-bold text-blue-800 whitespace-nowrap">
-                          {formatPrice(item.product.price)}
-                        </p>
+                        <div className="sm:text-right whitespace-nowrap">
+                          {percent > 0 && (
+                            <div className="flex sm:justify-end items-center gap-2">
+                              <span className="text-sm text-gray-400 line-through">
+                                {formatPrice(item.product.price)}
+                              </span>
+                              <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                -{percent} %
+                              </span>
+                            </div>
+                          )}
+                          <p className="text-xl sm:text-2xl font-bold text-blue-800">
+                            {formatPrice(unitPrice)}
+                          </p>
+                        </div>
                       </div>
 
                       {/* Variantes */}
@@ -390,8 +488,7 @@ export default function CartPage() {
 
                       <div className="text-right pt-2 border-t sm:border-0 mt-2 sm:mt-0">
                         <span className="text-base sm:text-lg font-semibold">
-                          Sous-total:{' '}
-                          {formatPrice(item.product.price * item.quantity)}
+                          Sous-total: {formatPrice(unitPrice * item.quantity)}
                         </span>
                       </div>
                     </div>
@@ -437,6 +534,15 @@ export default function CartPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
+
+                {/* Pays avec drapeaux */}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Pays *
+                  </label>
+                  <CountrySelect value={countryCode} onChange={setCountryCode} />
+                </div>
+
                 <input
                   type="text"
                   placeholder="Adresse *"
@@ -483,6 +589,68 @@ export default function CartPage() {
                 </div>
               </div>
 
+              {/* Code promo */}
+              <div className="mb-4 sm:mb-6">
+                <h4 className="text-base sm:text-lg font-medium mb-2 sm:mb-3 flex items-center gap-2">
+                  <Tag className="w-4 h-4" />
+                  Code promo
+                </h4>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Entrez votre code"
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyPromoCode();
+                      }
+                    }}
+                    className="flex-1 min-w-0 px-3 py-2.5 text-sm border rounded-lg uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyPromoCode}
+                    disabled={!promoInput.trim()}
+                    className="px-4 py-2.5 text-sm font-medium bg-blue-800 text-white rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Appliquer
+                  </button>
+                </div>
+
+                {promoMessage && (
+                  <p
+                    className={`text-xs sm:text-sm mt-2 ${
+                      promoMessage.type === 'success' ? 'text-green-700' : 'text-red-600'
+                    }`}
+                  >
+                    {promoMessage.text}
+                  </p>
+                )}
+
+                {appliedCodes.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {appliedCodes.map((code) => (
+                      <span
+                        key={code}
+                        className="inline-flex items-center gap-1 text-xs font-medium bg-green-100 text-green-800 px-2.5 py-1 rounded-full"
+                      >
+                        {code}
+                        <button
+                          type="button"
+                          onClick={() => removePromoCode(code)}
+                          aria-label={`Retirer le code ${code}`}
+                          className="hover:text-green-950"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Résumé */}
               <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">
                 Résumé
@@ -494,8 +662,14 @@ export default function CartPage() {
                     {state.cart.reduce((sum, item) => sum + item.quantity, 0)}{' '}
                     article{state.cart.length > 1 ? 's' : ''})
                   </span>
-                  <span>{formatPrice(subtotal)}</span>
+                  <span>{formatPrice(originalSubtotal)}</span>
                 </div>
+                {discountTotal > 0 && (
+                  <div className="flex justify-between text-sm sm:text-base text-green-700">
+                    <span>Réduction</span>
+                    <span>-{formatPrice(discountTotal)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-lg sm:text-xl font-bold border-t pt-2 sm:pt-3">
                   <span>Total</span>
                   <span className="text-blue-800">{formatPrice(total)}</span>

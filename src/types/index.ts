@@ -15,15 +15,17 @@ export interface Product {
   category: string;
   images: string[];
   variants: ProductVariant[];
-  createdAt: Date;
-  updatedAt: Date;
-  isWholesale?: boolean;
-  shippingPrice?: number;
+  stock: number;
+  isWholesale: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;          // 👈 AJOUTÉ (corrige l'erreur)
+  shippingPrice?: number;    // 👈 AJOUTÉ (corrige l'erreur)
+  discountPercent?: number;
+  discountCodes?: string[];
 }
 
-// ⚠️ Ajout de cartItemId ici
 export interface CartItem {
-  cartItemId: string;  // ← Ajout de cette propriété
+  cartItemId: string;
   productId: string;
   variantId: string;
   quantity: number;

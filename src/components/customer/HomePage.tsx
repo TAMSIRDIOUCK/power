@@ -1,5 +1,6 @@
 // src/components/customer/HomePage.tsx
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // ← AJOUT
 import ProductDetailPage from './ProductDetailPage';
 import { supabase } from '../../lib/supabaseClient';
 import { useApp, convertSupabaseProductToProduct } from '../../context/AppContext';
@@ -10,6 +11,7 @@ export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('tous');
   const { state, dispatch } = useApp();
+  const navigate = useNavigate(); // ← AJOUT
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -83,6 +85,11 @@ export default function HomePage() {
       <ProductDetailPage
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
+        // 👇 AJOUT : seul le bouton "Acheter" de la fiche produit déclenche cette action
+        onGoToCart={() => {
+          setSelectedProduct(null);
+          navigate('/cart');
+        }}
       />
     );
   }
@@ -94,11 +101,6 @@ export default function HomePage() {
         <img 
           src="/images/IMG_7711.jpg" 
           alt="Bannière Maison M" 
-          /* 
-            - h-[35vh] sur mobile (paysage)
-            - md:aspect-[16/9] ou md:h-[60vh] sur tablette/PC pour garder de belles proportions
-            - object-cover pour que l'image remplisse l'espace sans se déformer
-          */
           className="w-full h-[35vh] md:h-[60vh] lg:h-[70vh] object-cover object-center" 
         />
       </div>
@@ -214,8 +216,8 @@ export default function HomePage() {
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-serif font-bold mb-3 sm:mb-4">Contact</h3>
-              <p className="text-gray-500 mb-2 text-sm sm:text-base font-sans">Téléphone: +221 71 152 32 74
-
+              <p className="text-gray-500 mb-2 text-sm sm:text-base font-sans">
+                Téléphone: +221 71 152 32 74
               </p>
               <p className="text-gray-500 text-sm sm:text-base font-sans">Adresse: Dakar, Sénégal</p>
             </div>

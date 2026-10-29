@@ -1,6 +1,6 @@
 // src/components/vendor/AddProductForm.tsx
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, CheckCircle2, Tag, X } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { Product, ProductVariant } from '../../types';
 
@@ -16,8 +16,11 @@ export default function AddProductForm({ onClose, productToEdit }: AddProductFor
     price: '',
     images: [''],
     isWholesale: false,
+    discountPercent: '',
+    discountCodes: [] as string[],
   });
 
+  const [codeInput, setCodeInput] = useState('');
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [variantStock, setVariantStock] = useState(0);
@@ -50,6 +53,10 @@ export default function AddProductForm({ onClose, productToEdit }: AddProductFor
         price: productToEdit.price.toString(),
         images: productToEdit.images.length ? productToEdit.images : [''],
         isWholesale: productToEdit.isWholesale || false,
+        discountPercent: productToEdit.discountPercent
+          ? productToEdit.discountPercent.toString()
+          : '',
+        discountCodes: productToEdit.discountCodes || [],
       });
 
       const colorsFromVariants = [
@@ -103,6 +110,18 @@ export default function AddProductForm({ onClose, productToEdit }: AddProductFor
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation de la réduction
+    const discountPercent = parseInt(formData.discountPercent) || 0;
+    if (discountPercent < 0 || discountPercent > 100) {
+      alert('La réduction doit être comprise entre 0 et 100 %.');
+      return;
+    }
+    if (discountPercent > 0 && formData.discountCodes.length === 0) {
+      alert('Ajoutez au moins un code promo pour débloquer la réduction.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -211,6 +230,8 @@ export default function AddProductForm({ onClose, productToEdit }: AddProductFor
         updated_at: now.toISOString(),
         is_wholesale: formData.isWholesale,
         shipping_price: null, // Livraison gérée en boutique
+        discount_percent: discountPercent,
+        discount_codes: discountPercent > 0 ? formData.discountCodes : [],
       };
 
       let response;
@@ -242,7 +263,10 @@ export default function AddProductForm({ onClose, productToEdit }: AddProductFor
           price: '',
           images: [''],
           isWholesale: false,
+          discountPercent: '',
+          discountCodes: [],
         });
+        setCodeInput('');
         setSelectedColors([]);
         setSelectedSizes([]);
         setVariantStock(0);
@@ -279,6 +303,22 @@ export default function AddProductForm({ onClose, productToEdit }: AddProductFor
     selectedSizes.includes(size)
       ? setSelectedSizes(selectedSizes.filter((s) => s !== size))
       : setSelectedSizes([...selectedSizes, size]);
+
+  // Codes promo
+  const addDiscountCode = () => {
+    const code = codeInput.trim().toUpperCase().replace(/\s+/g, '');
+    if (!code) return;
+    if (!formData.discountCodes.includes(code)) {
+      setFormData({ ...formData, discountCodes: [...formData.discountCodes, code] });
+    }
+    setCodeInput('');
+  };
+
+  const removeDiscountCode = (code: string) =>
+    setFormData({
+      ...formData,
+      discountCodes: formData.discountCodes.filter((c) => c !== code),
+    });
 
   return (
     <div className="min-h-screen bg-gray-50 relative">
@@ -345,6 +385,102 @@ export default function AddProductForm({ onClose, productToEdit }: AddProductFor
                 }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg"
               />
+            </div>
+
+            {/* Réduction par code promo */}
+            <div className="border border-green-200 bg-green-50/50 rounded-xl p-4 sm:p-5">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <Tag className="w-5 h-5 text-green-700" />
+                Réduction par code promo
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1 mb-4">
+                Le client obtient la réduction sur ce produit en saisissant l'un des codes
+                ci-dessous dans son panier.
+              </p>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Pourcentage de réduction
+                </label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={formData.discountPercent}
+                    onChange={(e) =>
+                      setFormData({ ...formData, discountPercent: e.target.value })
+                    }
+                    placeholder="Ex : 20"
+                    className="w-32 px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <span className="text-gray-600">%</span>
+                </div>
+                {parseInt(formData.price) > 0 && parseInt(formData.discountPercent) > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Prix avec le code :{' '}
+                    {new Intl.NumberFormat('fr-FR').format(
+                      Math.round(
+                        (parseInt(formData.price) *
+                          (100 - Math.min(parseInt(formData.discountPercent), 100))) /
+                          100
+                      )
+                    )}{' '}
+                    F CFA
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-4">
+                <label className="text-sm font-medium text-gray-700">
+                  Codes promo (un ou plusieurs)
+                </label>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="text"
+                    value={codeInput}
+                    onChange={(e) => setCodeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addDiscountCode();
+                      }
+                    }}
+                    placeholder="Ex : BIENVENUE20"
+                    className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg bg-white uppercase"
+                  />
+                  <button
+                    type="button"
+                    onClick={addDiscountCode}
+                    disabled={!codeInput.trim()}
+                    className="flex items-center px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 disabled:opacity-50"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Ajouter
+                  </button>
+                </div>
+
+                {formData.discountCodes.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {formData.discountCodes.map((code) => (
+                      <span
+                        key={code}
+                        className="inline-flex items-center gap-1 text-sm font-medium bg-white border border-green-300 text-green-800 px-3 py-1 rounded-full"
+                      >
+                        {code}
+                        <button
+                          type="button"
+                          onClick={() => removeDiscountCode(code)}
+                          aria-label={`Supprimer le code ${code}`}
+                          className="hover:text-red-600"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Vente en gros */}

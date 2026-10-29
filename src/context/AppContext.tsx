@@ -43,7 +43,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, products: action.payload };
 
     case "ADD_TO_CART": {
-      // Générer un ID unique pour l'article du panier
       const cartItemId = action.payload.cartItemId || `${action.payload.variantId}-${Date.now()}-${Math.random()}`;
       
       const newCartItem: CartItem = {
@@ -51,14 +50,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
         cartItemId,
       };
 
-      // Vérifier si le produit avec la même variante existe déjà
       const existingItemIndex = state.cart.findIndex(
         (item) => item.productId === newCartItem.productId && 
                   item.variantId === newCartItem.variantId
       );
 
       if (existingItemIndex !== -1) {
-        // Mettre à jour la quantité si déjà existant
         const updatedCart = [...state.cart];
         updatedCart[existingItemIndex] = {
           ...updatedCart[existingItemIndex],
@@ -67,7 +64,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
         return { ...state, cart: updatedCart };
       }
 
-      // Ajouter nouvel article
       return { ...state, cart: [...state.cart, newCartItem] };
     }
 
@@ -150,7 +146,7 @@ export function useApp() {
   return context;
 }
 
-// ✅ Fonction utilitaire pour convertir un produit de Supabase (products2) vers le format Product
+// ✅ Fonction corrigée
 export function convertSupabaseProductToProduct(supabaseProduct: any): Product {
   return {
     id: supabaseProduct.id,
@@ -166,14 +162,19 @@ export function convertSupabaseProductToProduct(supabaseProduct: any): Product {
       stock: v.stock || 0,
       sku: `${supabaseProduct.id}-${v.size || 'nosize'}-${v.color || 'nocolor'}`,
     })),
-    createdAt: new Date(supabaseProduct.created_at),
-    updatedAt: new Date(supabaseProduct.updated_at || supabaseProduct.created_at),
+    stock: supabaseProduct.stock || 0,
+    createdAt: supabaseProduct.created_at ? new Date(supabaseProduct.created_at) : new Date(),
+    updatedAt: supabaseProduct.updated_at ? new Date(supabaseProduct.updated_at) : undefined,
     isWholesale: supabaseProduct.is_wholesale || false,
     shippingPrice: supabaseProduct.shipping_price || 0,
+    
+    // 👇 RÉDUCTIONS
+    discountPercent: supabaseProduct.discount_percent || 0,
+    discountCodes: Array.isArray(supabaseProduct.discount_codes) ? supabaseProduct.discount_codes : [],
   };
 }
 
-// ✅ Fonction pour convertir un Product vers le format Supabase
+// ✅ Fonction corrigée
 export function convertProductToSupabaseProduct(product: Product): any {
   return {
     id: product.id,
@@ -190,7 +191,11 @@ export function convertProductToSupabaseProduct(product: Product): any {
     stock: product.variants.reduce((sum, v) => sum + v.stock, 0),
     is_wholesale: product.isWholesale || false,
     shipping_price: product.shippingPrice || 0,
-    created_at: product.createdAt.toISOString(),
-    updated_at: product.updatedAt.toISOString(),
+    // 👇 GESTION DES DATES
+    created_at: product.createdAt?.toISOString() || new Date().toISOString(),
+    updated_at: product.updatedAt?.toISOString() || new Date().toISOString(),
+    // 👇 RÉDUCTIONS
+    discount_percent: product.discountPercent || 0,
+    discount_codes: product.discountCodes || [],
   };
 }
