@@ -285,13 +285,14 @@ export default function CartPage() {
     }
   };
 
+  // 👇 C'EST ICI QUE LA LOGIQUE DE BOOKINGPAGE EST APPLIQUÉE 👇
   const submitOnlineOrder = async () => {
     if (!SUPABASE_URL) {
       alert('Configuration du paiement manquante (VITE_SUPABASE_URL).');
       return;
     }
 
-    // Ouvre la fenêtre de paiement immédiatement pour éviter le blocage de popup
+    // 1. Ouvre la fenêtre de paiement immédiatement pour éviter le blocage
     const paymentWindow = window.open('', '_blank');
     if (paymentWindow) {
       paymentWindow.document.write(
@@ -313,7 +314,11 @@ export default function CartPage() {
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/initiate-order-payment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          // 👇 CETTE LIGNE EST LA CLÉ POUR RÉSOUDRE LE CORS 👇
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`, 
+        },
         body: JSON.stringify({
           order_id: orderData.id,
           phone: phone.replace(/\s/g, ''),
@@ -340,10 +345,12 @@ export default function CartPage() {
       }
     } catch (error: any) {
       console.error('Erreur paiement:', error);
+      // 2. On ferme le popup en cas d'erreur, et on affiche l'erreur
       paymentWindow?.close();
       alert(error.message || "Une erreur est survenue lors de l'initiation du paiement.");
     } finally {
-      setIsLoading(false); // 👈 Quoi qu'il arrive, on arrête le chargement
+      // 3. On stoppe le spinner QUOI QU'IL ARRIVE
+      setIsLoading(false); 
     }
   };
 
