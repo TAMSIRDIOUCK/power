@@ -1,9 +1,6 @@
 //rc/lib/supabaseClient.ts
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://netgmadtongdspojqaue.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ldGdtYWR0b25nZHNwb2pxYXVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMTg3NDIsImV4cCI6MjA2MzY5NDc0Mn0.h6lHxp0xUjiB2mE6OT-ePqNanmSFKs7zhvvHRtwKXKI'
-const PAYDUNYA_MASTER_KEY = 'live_public_IoUsZsDaGwxZG8vzhdTtiN7NjbF'
-const PAYDUNYA_PRIVATE_KEY = 'live_private_6YDTS26zAn6EGY10WCX3CL7tBqO'
-const PAYDUNYA_TOKEN = 'AzJdRTTvkkyfk2cm0bEa'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
