@@ -37,7 +37,7 @@ interface Order {
 
 // ⚠️ CONFIGURATION DU NUMÉRO DE RETRAIT
 // Note: PayDunya attend un numéro sans le "+" ni les espaces (ex: 221704776258)
-const VENDOR_WITHDRAW_PHONE = "221704776258"; // 👈 MODIFIEZ CE NUMÉRO (sans + ni espaces)
+const VENDOR_WITHDRAW_PHONE = "704776258"; // 👈 MODIFIEZ CE NUMÉRO (sans + ni espaces)
 const VENDOR_WITHDRAW_MODE = "wave-senegal"; // 👈 "wave-senegal" ou "orange-money-senegal"
 
 const PAYDUNYA_FEE_PERCENT = 0.02; // 2% de frais PayDunya
