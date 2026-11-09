@@ -31,13 +31,16 @@ interface Order {
   is_paid: boolean;
   paid_at?: string | null;
   status: string;
-  payment_method?: string | null; // 👈 Ajouté pour distinguer en ligne / COD
+  payment_method?: string | null;
   order_items: OrderItem[];
 }
 
-// ⚠️ CONFIGURATION DU NUMÉRO DE RETRAIT (Défini dans le code)
-const VENDOR_WITHDRAW_PHONE = "+221 70 477 62 58"; // 👈 MODIFIEZ CE NUMÉRO ICI
-const PAYDUNYA_FEE_PERCENT = 0.02; // 2% de frais PayDunya (à ajuster selon votre contrat)
+// ⚠️ CONFIGURATION DU NUMÉRO DE RETRAIT
+// Note: PayDunya attend un numéro sans le "+" ni les espaces (ex: 221704776258)
+const VENDOR_WITHDRAW_PHONE = "221704776258"; // 👈 MODIFIEZ CE NUMÉRO (sans + ni espaces)
+const VENDOR_WITHDRAW_MODE = "wave-senegal"; // 👈 "wave-senegal" ou "orange-money-senegal"
+
+const PAYDUNYA_FEE_PERCENT = 0.02; // 2% de frais PayDunya
 const DELIVERY_FEE = 1000;
 
 const formatPrice = (price: number) =>
@@ -107,7 +110,7 @@ export default function VendorDashboard() {
       is_paid: o.is_paid || false,
       paid_at: o.paid_at,
       status: o.status || 'pending',
-      payment_method: o.payment_method || 'cod', // Par défaut à la livraison
+      payment_method: o.payment_method || 'cod',
       order_items: o.order_items || [],
     }));
 
@@ -154,13 +157,11 @@ export default function VendorDashboard() {
 
   // --- CALCULS FINANCIERS ---
   
-  // 1. Argent en ligne (Payé via PayDunya)
   const onlinePaidOrders = orders.filter(o => o.is_paid && o.payment_method === 'online');
   const totalOnlineBrut = onlinePaidOrders.reduce((sum, o) => sum + o.total + DELIVERY_FEE, 0);
   const totalOnlineFees = totalOnlineBrut * PAYDUNYA_FEE_PERCENT;
   const totalOnlineNet = totalOnlineBrut - totalOnlineFees;
 
-  // 2. Argent à la livraison (Espèces)
   const codPaidOrders = orders.filter(o => o.is_paid && o.payment_method !== 'online');
   const totalCod = codPaidOrders.reduce((sum, o) => sum + o.total + DELIVERY_FEE, 0);
 
@@ -178,14 +179,43 @@ export default function VendorDashboard() {
     ? orders
     : orders.filter(o => o.status === statusFilter);
 
-  const handleWithdraw = () => {
+  // 👇 VRAIE FONCTION DE RETRAIT AUTOMATIQUE 👇
+  const handleWithdraw = async () => {
     if (totalOnlineNet <= 0) return;
+    
+    if (!confirm(`Confirmer le retrait de ${formatPrice(totalOnlineNet)} vers le ${VENDOR_WITHDRAW_PHONE} ?`)) {
+      return;
+    }
+
     setIsWithdrawing(true);
-    // Simulation de l'appel API de retrait
-    setTimeout(() => {
-      alert(`Demande de retrait de ${formatPrice(totalOnlineNet)} envoyée avec succès !\n\nLe virement sera effectué sur le numéro : ${VENDOR_WITHDRAW_PHONE}`);
+
+    try {
+      // Appel à la fonction Edge Supabase qui contactera PayDunya
+      const { data, error } = await supabase.functions.invoke('paydunya-payout', {
+        body: {
+          amount: Math.round(totalOnlineNet), // PayDunya attend un entier
+          phone: VENDOR_WITHDRAW_PHONE,
+          withdraw_mode: VENDOR_WITHDRAW_MODE,
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      alert(`✅ Transfert réussi ! ${formatPrice(totalOnlineNet)} ont été envoyés sur votre compte.`);
+      
+      // Optionnel : Marquer les commandes comme "retirées" dans la base pour ne pas les recompter
+      // await supabase.from('orders2').update({ payout_status: 'completed' }).in('id', onlinePaidOrders.map(o => o.id));
+      
+      // Rafraîchir pour mettre à jour les soldes
+      fetchOrders();
+
+    } catch (err: any) {
+      console.error("Erreur retrait:", err);
+      alert(`❌ Erreur lors du retrait : ${err.message || "Impossible d'effectuer le transfert."}`);
+    } finally {
       setIsWithdrawing(false);
-    }, 1500);
+    }
   };
 
   if (showAddProduct) {
@@ -237,7 +267,6 @@ export default function VendorDashboard() {
         {/* ── Vue d'ensemble ── */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
-            {/* Ligne 1 : Stats de base */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <StatCard title="Produits"         value={stats.totalProducts}          icon={Package}      />
               <StatCard title="Commandes"         value={stats.totalOrders}            icon={ShoppingCart} />
@@ -245,9 +274,7 @@ export default function VendorDashboard() {
               <StatCard title="En attente"        value={stats.pendingOrders}          icon={Clock}        />
             </div>
 
-            {/* Ligne 2 : Finances */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Carte Paiement en ligne */}
               <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold text-black flex items-center gap-2">
@@ -286,7 +313,6 @@ export default function VendorDashboard() {
                 </p>
               </div>
 
-              {/* Carte Paiement à la livraison */}
               <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold text-black flex items-center gap-2">
@@ -360,7 +386,6 @@ export default function VendorDashboard() {
                           {formatPrice(order.total + DELIVERY_FEE)}
                         </div>
 
-                        {/* Badge mode de paiement */}
                         <div className="shrink-0">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${
                             isOnline 
