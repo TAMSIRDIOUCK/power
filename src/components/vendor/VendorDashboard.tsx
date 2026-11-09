@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Package, ShoppingCart, TrendingUp, Plus, Tag,
-  Trash2, Pencil, ChevronDown, ChevronUp, CheckCircle, Clock, Truck, XCircle
+  Trash2, Pencil, ChevronDown, ChevronUp, CheckCircle, Clock, Truck, XCircle,
+  Wallet, ArrowDownToLine
 } from 'lucide-react';
 import AddProductForm from './AddProductForm';
 import { supabase } from '../../lib/supabaseClient';
@@ -30,9 +31,13 @@ interface Order {
   is_paid: boolean;
   paid_at?: string | null;
   status: string;
+  payment_method?: string | null; // 👈 Ajouté pour distinguer en ligne / COD
   order_items: OrderItem[];
 }
 
+// ⚠️ CONFIGURATION DU NUMÉRO DE RETRAIT (Défini dans le code)
+const VENDOR_WITHDRAW_PHONE = "+221 77 123 45 67"; // 👈 MODIFIEZ CE NUMÉRO ICI
+const PAYDUNYA_FEE_PERCENT = 0.02; // 2% de frais PayDunya (à ajuster selon votre contrat)
 const DELIVERY_FEE = 1000;
 
 const formatPrice = (price: number) =>
@@ -59,6 +64,7 @@ export default function VendorDashboard() {
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -80,7 +86,7 @@ export default function VendorDashboard() {
       .from('orders2')
       .select(`
         id, created_at, total, first_name, last_name,
-        phone, address, is_paid, paid_at, status,
+        phone, address, is_paid, paid_at, status, payment_method,
         order_items:order_items2 (
           id, quantity, variant_color, variant_size,
           product_image, product_name, product_price
@@ -101,6 +107,7 @@ export default function VendorDashboard() {
       is_paid: o.is_paid || false,
       paid_at: o.paid_at,
       status: o.status || 'pending',
+      payment_method: o.payment_method || 'cod', // Par défaut à la livraison
       order_items: o.order_items || [],
     }));
 
@@ -145,19 +152,41 @@ export default function VendorDashboard() {
   const getTotalStock = (product: Product) =>
     product.variants.reduce((sum, v) => sum + v.stock, 0);
 
-  const paidOrders = orders.filter(o => o.is_paid);
+  // --- CALCULS FINANCIERS ---
+  
+  // 1. Argent en ligne (Payé via PayDunya)
+  const onlinePaidOrders = orders.filter(o => o.is_paid && o.payment_method === 'online');
+  const totalOnlineBrut = onlinePaidOrders.reduce((sum, o) => sum + o.total + DELIVERY_FEE, 0);
+  const totalOnlineFees = totalOnlineBrut * PAYDUNYA_FEE_PERCENT;
+  const totalOnlineNet = totalOnlineBrut - totalOnlineFees;
+
+  // 2. Argent à la livraison (Espèces)
+  const codPaidOrders = orders.filter(o => o.is_paid && o.payment_method !== 'online');
+  const totalCod = codPaidOrders.reduce((sum, o) => sum + o.total + DELIVERY_FEE, 0);
 
   const stats = {
     totalProducts: products.length,
     totalOrders: orders.length,
-    totalRevenue: paidOrders.reduce((sum, o) => sum + o.total + DELIVERY_FEE, 0),
-    totalCategories: [...new Set(products.map(p => p.category))].length,
     pendingOrders: orders.filter(o => o.status === 'pending').length,
+    totalOnlineNet,
+    totalOnlineBrut,
+    totalOnlineFees,
+    totalCod,
   };
 
   const filteredOrders = statusFilter === 'all'
     ? orders
     : orders.filter(o => o.status === statusFilter);
+
+  const handleWithdraw = () => {
+    if (totalOnlineNet <= 0) return;
+    setIsWithdrawing(true);
+    // Simulation de l'appel API de retrait
+    setTimeout(() => {
+      alert(`Demande de retrait de ${formatPrice(totalOnlineNet)} envoyée avec succès !\n\nLe virement sera effectué sur le numéro : ${VENDOR_WITHDRAW_PHONE}`);
+      setIsWithdrawing(false);
+    }, 1500);
+  };
 
   if (showAddProduct) {
     return (
@@ -181,7 +210,7 @@ export default function VendorDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Tableau de Bord Vendeur</h1>
+        <h1 className="text-3xl font-bold mb-6 text-black">Tableau de Bord Vendeur</h1>
 
         {/* Tabs */}
         <div className="mb-6 flex gap-6 border-b">
@@ -191,13 +220,13 @@ export default function VendorDashboard() {
               onClick={() => setActiveTab(tab.key)}
               className={`pb-2 flex items-center gap-2 ${
                 activeTab === tab.key
-                  ? 'border-b-2 border-blue-600 text-blue-600 font-semibold'
+                  ? 'border-b-2 border-black text-black font-semibold'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {tab.label}
               {'badge' in tab && tab.badge > 0 && (
-                <span className="bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
+                <span className="bg-black text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
                   {tab.badge}
                 </span>
               )}
@@ -207,18 +236,79 @@ export default function VendorDashboard() {
 
         {/* ── Vue d'ensemble ── */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <StatCard title="Produits"         value={stats.totalProducts}          icon={Package}      />
-            <StatCard title="Commandes"         value={stats.totalOrders}            icon={ShoppingCart} />
-            <StatCard title="Chiffre d'affaires" value={formatPrice(stats.totalRevenue)} icon={TrendingUp}   />
-            <StatCard title="Catégories"        value={stats.totalCategories}        icon={Tag}          />
+          <div className="space-y-8">
+            {/* Ligne 1 : Stats de base */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <StatCard title="Produits"         value={stats.totalProducts}          icon={Package}      />
+              <StatCard title="Commandes"         value={stats.totalOrders}            icon={ShoppingCart} />
+              <StatCard title="Catégories"        value={[...new Set(products.map(p => p.category))].length}  icon={Tag}          />
+              <StatCard title="En attente"        value={stats.pendingOrders}          icon={Clock}        />
+            </div>
+
+            {/* Ligne 2 : Finances */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Carte Paiement en ligne */}
+              <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-black" /> Paiements en ligne
+                  </h2>
+                  <span className="text-xs font-semibold bg-gray-100 text-black px-2 py-1 rounded">PayDunya</span>
+                </div>
+                <div className="space-y-2 text-sm mb-6">
+                  <div className="flex justify-between text-gray-500">
+                    <span>Chiffre d'affaires brut</span>
+                    <span>{formatPrice(stats.totalOnlineBrut)}</span>
+                  </div>
+                  <div className="flex justify-between text-red-600">
+                    <span>Frais PayDunya ({(PAYDUNYA_FEE_PERCENT * 100).toFixed(0)}%)</span>
+                    <span>-{formatPrice(stats.totalOnlineFees)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-xl text-black border-t border-gray-200 pt-2 mt-2">
+                    <span>Net à récupérer</span>
+                    <span>{formatPrice(stats.totalOnlineNet)}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleWithdraw}
+                  disabled={stats.totalOnlineNet <= 0 || isWithdrawing}
+                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold transition-colors ${
+                    stats.totalOnlineNet <= 0 
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                      : 'bg-black text-white hover:bg-gray-800'
+                  }`}
+                >
+                  <ArrowDownToLine className="w-5 h-5" />
+                  {isWithdrawing ? 'Traitement...' : 'Récupérer mon argent'}
+                </button>
+                <p className="text-xs text-gray-400 text-center mt-3">
+                  Vers le numéro : {VENDOR_WITHDRAW_PHONE}
+                </p>
+              </div>
+
+              {/* Carte Paiement à la livraison */}
+              <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-black" /> Paiement à la livraison
+                  </h2>
+                  <span className="text-xs font-semibold bg-gray-100 text-black px-2 py-1 rounded">Espèces</span>
+                </div>
+                <div className="flex flex-col justify-center h-[120px]">
+                  <p className="text-sm text-gray-500 mb-1">Total encaissé en espèces</p>
+                  <p className="text-3xl font-black text-black">{formatPrice(stats.totalCod)}</p>
+                </div>
+                <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-600">
+                  💡 Cet argent est encaissé directement par le livreur lors de la remise du colis.
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
         {/* ── Commandes ── */}
         {activeTab === 'orders' && (
           <div>
-            {/* Filtres statut */}
             <div className="flex gap-2 mb-4 flex-wrap">
               {['all', 'pending', 'shipped', 'delivered', 'cancelled'].map(s => (
                 <button
@@ -226,8 +316,8 @@ export default function VendorDashboard() {
                   onClick={() => setStatusFilter(s)}
                   className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                     statusFilter === s
-                      ? 'bg-blue-800 text-white border-blue-800'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-black'
                   }`}
                 >
                   {s === 'all' ? 'Toutes' : STATUS_CONFIG[s]?.label ?? s}
@@ -245,64 +335,67 @@ export default function VendorDashboard() {
                   const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG['pending'];
                   const isExpanded = expandedOrder === order.id;
                   const customerName = `${order.first_name} ${order.last_name}`.trim() || '—';
+                  const isOnline = order.payment_method === 'online';
 
                   return (
                     <div key={order.id} className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                      {/* Header ligne */}
                       <div
                         className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
                         onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                       >
-                        {/* Client */}
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-gray-800 truncate">{customerName}</p>
                           <p className="text-xs text-gray-400">{order.phone}</p>
                         </div>
 
-                        {/* Date */}
                         <div className="hidden sm:block text-sm text-gray-500 w-28 shrink-0">
                           {formatDate(order.created_at)}
                         </div>
 
-                        {/* Articles count */}
                         <div className="text-sm text-gray-500 w-20 shrink-0 hidden md:block">
                           {order.order_items.length} article{order.order_items.length > 1 ? 's' : ''}
                         </div>
 
-                        {/* Total */}
                         <div className="font-bold text-gray-800 w-28 shrink-0 text-right sm:text-left">
                           {formatPrice(order.total + DELIVERY_FEE)}
                         </div>
 
-                        {/* Statut */}
+                        {/* Badge mode de paiement */}
+                        <div className="shrink-0">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                            isOnline 
+                              ? 'bg-black text-white border-black' 
+                              : 'bg-gray-100 text-gray-800 border-gray-200'
+                          }`}>
+                            {isOnline ? <Wallet size={12} /> : <Truck size={12} />}
+                            {isOnline ? 'En ligne' : 'À la livraison'}
+                          </span>
+                        </div>
+
                         <div className="shrink-0">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusCfg.color}`}>
                             {statusCfg.icon} {statusCfg.label}
                           </span>
                         </div>
 
-                        {/* Paiement */}
                         <button
                           onClick={e => { e.stopPropagation(); togglePaid(order.id, order.is_paid); }}
                           className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                             order.is_paid
-                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                              : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                              ? 'bg-black text-white border-black'
+                              : 'bg-white text-red-600 border-red-200 hover:bg-red-50'
                           }`}
                         >
                           {order.is_paid ? '✓ Payée' : 'Non payée'}
                         </button>
 
-                        {/* Toggle icon */}
                         <div className="text-gray-400 shrink-0">
                           {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </div>
                       </div>
 
-                      {/* Détail dépliant */}
                       {isExpanded && (
                         <div className="border-t bg-gray-50 px-5 py-4 space-y-4">
-                          {/* Infos client */}
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                             <div>
                               <p className="text-xs text-gray-400 mb-0.5">Adresse</p>
@@ -320,7 +413,6 @@ export default function VendorDashboard() {
                             )}
                           </div>
 
-                          {/* Articles */}
                           <div>
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                               Articles commandés
@@ -357,7 +449,6 @@ export default function VendorDashboard() {
                             </div>
                           </div>
 
-                          {/* Récap prix + livraison */}
                           <div className="flex justify-end">
                             <div className="text-sm space-y-1 w-56">
                               <div className="flex justify-between text-gray-500">
@@ -368,20 +459,19 @@ export default function VendorDashboard() {
                                 <span>Livraison</span>
                                 <span>{formatPrice(DELIVERY_FEE)}</span>
                               </div>
-                              <div className="flex justify-between font-bold text-gray-800 border-t pt-1">
+                              <div className="flex justify-between font-bold text-black border-t pt-1">
                                 <span>Total</span>
                                 <span>{formatPrice(order.total + DELIVERY_FEE)}</span>
                               </div>
                             </div>
                           </div>
 
-                          {/* Changer statut */}
                           <div className="flex items-center gap-2 pt-1">
                             <label className="text-sm text-gray-500">Changer le statut :</label>
                             <select
                               value={order.status}
                               onChange={e => updateOrderStatus(order.id, e.target.value)}
-                              className="text-sm border rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+                              className="text-sm border rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-black"
                             >
                               <option value="pending">En attente</option>
                               <option value="shipped">Expédiée</option>
@@ -403,10 +493,10 @@ export default function VendorDashboard() {
         {activeTab === 'products' && (
           <div>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold">Gestion des Produits</h2>
+              <h2 className="text-xl font-semibold text-black">Gestion des Produits</h2>
               <button
                 onClick={() => { setEditingProduct(null); setShowAddProduct(true); }}
-                className="bg-blue-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-900"
+                className="bg-black text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-800"
               >
                 <Plus size={18} /> Ajouter
               </button>
@@ -414,13 +504,13 @@ export default function VendorDashboard() {
 
             <div className="bg-white rounded-xl shadow border overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="p-4 text-left">Produit</th>
-                    <th className="p-4 text-left">Catégorie</th>
-                    <th className="p-4 text-left">Prix</th>
-                    <th className="p-4 text-left">Stock</th>
-                    <th className="p-4 text-left">Actions</th>
+                    <th className="p-4 text-left text-black">Produit</th>
+                    <th className="p-4 text-left text-black">Catégorie</th>
+                    <th className="p-4 text-left text-black">Prix</th>
+                    <th className="p-4 text-left text-black">Stock</th>
+                    <th className="p-4 text-left text-black">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -431,27 +521,27 @@ export default function VendorDashboard() {
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             {product.images?.[0] && (
-                              <img src={product.images[0]} className="w-12 h-12 rounded object-cover" alt={product.name} />
+                              <img src={product.images[0]} className="w-12 h-12 rounded object-cover border" alt={product.name} />
                             )}
-                            <span className="font-medium">{product.name}</span>
+                            <span className="font-medium text-black">{product.name}</span>
                           </div>
                         </td>
                         <td className="p-4 text-gray-500">{product.category}</td>
-                        <td className="p-4 font-medium">{formatPrice(product.price)}</td>
-                        <td className={`p-4 font-semibold ${totalStock < 10 ? 'text-red-600' : 'text-gray-700'}`}>
+                        <td className="p-4 font-medium text-black">{formatPrice(product.price)}</td>
+                        <td className={`p-4 font-semibold ${totalStock < 10 ? 'text-red-600' : 'text-black'}`}>
                           {totalStock}
                         </td>
                         <td className="p-4">
                           <div className="flex gap-4">
                             <button
                               onClick={() => editProduct(product)}
-                              className="text-blue-600 flex items-center gap-1 hover:text-blue-800 text-sm"
+                              className="text-gray-600 flex items-center gap-1 hover:text-black text-sm"
                             >
                               <Pencil size={15} /> Modifier
                             </button>
                             <button
                               onClick={() => deleteProduct(product.id)}
-                              className="text-red-600 flex items-center gap-1 hover:text-red-800 text-sm"
+                              className="text-red-500 flex items-center gap-1 hover:text-red-700 text-sm"
                             >
                               <Trash2 size={15} /> Supprimer
                             </button>
@@ -475,9 +565,9 @@ function StatCard({ title, value, icon: Icon }: { title: string; value: string |
     <div className="bg-white p-6 rounded-xl shadow border flex justify-between items-center">
       <div>
         <p className="text-sm text-gray-500">{title}</p>
-        <p className="text-xl font-bold">{value}</p>
+        <p className="text-xl font-bold text-black">{value}</p>
       </div>
-      <Icon className="w-6 h-6 text-blue-600" />
+      <Icon className="w-6 h-6 text-black" />
     </div>
   );
 }
