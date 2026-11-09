@@ -5,8 +5,9 @@ import {
   Trash2, Pencil, ChevronDown, ChevronUp, CheckCircle, Clock, Truck, XCircle,
   Wallet, ArrowDownToLine
 } from 'lucide-react';
-import AddProductForm from './AddProductForm';
 import { supabase } from '../../lib/supabaseClient';
+import { FunctionsHttpError } from '@supabase/supabase-js'; // 👈 Import ajouté
+import AddProductForm from './AddProductForm';
 import { Product } from '../../types';
 import { convertSupabaseProductToProduct } from '../../context/AppContext';
 
@@ -36,8 +37,8 @@ interface Order {
 }
 
 // ⚠️ CONFIGURATION DU NUMÉRO DE RETRAIT
-// Note: PayDunya attend un numéro sans le "+" ni les espaces (ex: 221704776258)
-const VENDOR_WITHDRAW_PHONE = "704776258"; // 👈 MODIFIEZ CE NUMÉRO (sans + ni espaces)
+// PayDunya attend un numéro sans le "+" ni les espaces, et sans le code pays (ex: 704776258)
+const VENDOR_WITHDRAW_PHONE = "704776258"; // 👈 MODIFIEZ CE NUMÉRO
 const VENDOR_WITHDRAW_MODE = "wave-senegal"; // 👈 "wave-senegal" ou "orange-money-senegal"
 
 const PAYDUNYA_FEE_PERCENT = 0.02; // 2% de frais PayDunya
@@ -193,7 +194,7 @@ export default function VendorDashboard() {
       // Appel à la fonction Edge Supabase qui contactera PayDunya
       const { data, error } = await supabase.functions.invoke('paydunya-payout', {
         body: {
-          amount: Math.round(totalOnlineNet), // PayDunya attend un entier
+          amount: Math.round(totalOnlineNet),
           phone: VENDOR_WITHDRAW_PHONE,
           withdraw_mode: VENDOR_WITHDRAW_MODE,
         },
@@ -204,15 +205,23 @@ export default function VendorDashboard() {
 
       alert(`✅ Transfert réussi ! ${formatPrice(totalOnlineNet)} ont été envoyés sur votre compte.`);
       
-      // Optionnel : Marquer les commandes comme "retirées" dans la base pour ne pas les recompter
-      // await supabase.from('orders2').update({ payout_status: 'completed' }).in('id', onlinePaidOrders.map(o => o.id));
-      
       // Rafraîchir pour mettre à jour les soldes
       fetchOrders();
 
     } catch (err: any) {
       console.error("Erreur retrait:", err);
-      alert(`❌ Erreur lors du retrait : ${err.message || "Impossible d'effectuer le transfert."}`);
+      
+      // 👇 Extraction du vrai message d'erreur envoyé par la fonction Edge
+      if (err instanceof FunctionsHttpError) {
+        try {
+          const errorBody = await err.context.json();
+          alert(`❌ Erreur PayDunya : ${errorBody.error || "Erreur inconnue"}`);
+        } catch {
+          alert(`❌ Erreur : ${err.message}`);
+        }
+      } else {
+        alert(`❌ Erreur : ${err.message || "Impossible d'effectuer le transfert."}`);
+      }
     } finally {
       setIsWithdrawing(false);
     }
