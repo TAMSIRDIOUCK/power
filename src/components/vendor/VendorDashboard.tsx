@@ -36,7 +36,7 @@ interface Order {
 }
 
 // ⚠️ CONFIGURATION DU NUMÉRO DE RETRAIT (Défini dans le code)
-const VENDOR_WITHDRAW_PHONE = "+221 77 123 45 67"; // 👈 MODIFIEZ CE NUMÉRO ICI
+const VENDOR_WITHDRAW_PHONE = "+221 70 477 62 58"; // 👈 MODIFIEZ CE NUMÉRO ICI
 const PAYDUNYA_FEE_PERCENT = 0.02; // 2% de frais PayDunya (à ajuster selon votre contrat)
 const DELIVERY_FEE = 1000;
 
