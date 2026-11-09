@@ -7,7 +7,6 @@ import { useApp } from '../../context/AppContext';
 interface ProductDetailPageProps {
   product: Product;
   onClose: () => void;
-  // Ouvre la page panier (à fournir par le composant parent, voir les explications)
   onGoToCart: () => void;
 }
 
@@ -59,13 +58,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
 
   const handleBuyNow = () => {
     if (!selectedVariant || selectedVariant.stock < quantity) return;
-
-    // Ajoute au panier seulement si le produit n'y est pas déjà
-    if (!isInCart()) {
-      addToCart();
-    }
-
-    // Redirection directe vers la page panier
+    if (!isInCart()) addToCart();
     onGoToCart();
   };
 
@@ -85,7 +78,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
       <div className="max-w-6xl mx-auto px-4 py-8">
         <button
           onClick={onClose}
-          className="flex items-center text-blue-600 hover:text-blue-800 transition-colors mb-6"
+          className="flex items-center text-black hover:text-gray-600 transition-colors mb-6"
         >
           <ArrowLeft className="w-5 h-5 mr-2" />
           Retour aux produits
@@ -109,7 +102,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
                       key={index}
                       onClick={() => setSelectedImageIndex(index)}
                       className={`min-w-[80px] h-20 rounded-lg overflow-hidden border-2 cursor-pointer ${
-                        selectedImageIndex === index ? 'border-blue-500' : 'border-gray-200'
+                        selectedImageIndex === index ? 'border-black' : 'border-gray-200'
                       }`}
                     >
                       <img
@@ -133,11 +126,11 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
               </div>
 
               <div>
-                <div className="text-3xl font-bold text-blue-800">
+                <div className="text-3xl font-bold text-black">
                   {formatPrice(product.price)}
                 </div>
                 {hasPromo && (
-                  <p className="mt-3 flex items-start gap-2 text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  <p className="mt-3 flex items-start gap-2 text-sm text-black bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                     <Tag className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <span>
                       {product.discountPercent} % de réduction sur ce produit avec un code promo de la
@@ -157,7 +150,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
                       onClick={() => updateVariant(size)}
                       className={`px-4 py-2 border rounded-xl font-medium transition-colors ${
                         selectedVariant.size === size
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          ? 'border-black bg-gray-50 text-black'
                           : 'border-gray-300 text-gray-700 hover:border-gray-400'
                       }`}
                     >
@@ -177,7 +170,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
                       onClick={() => updateVariant(undefined, color)}
                       className={`px-4 py-2 border rounded-xl font-medium transition-colors ${
                         selectedVariant.color === color
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          ? 'border-black bg-gray-50 text-black'
                           : 'border-gray-300 text-gray-700 hover:border-gray-400'
                       }`}
                     >
@@ -218,7 +211,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
                 <button
                   onClick={handleAddToCart}
                   disabled={selectedVariant.stock === 0}
-                  className="w-full bg-blue-800 text-white py-4 rounded-xl font-semibold hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="w-full bg-black text-white py-4 rounded-xl font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   <ShoppingCart className="w-5 h-5 mr-2" />
                   {selectedVariant.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}
@@ -227,7 +220,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
                 <button
                   onClick={handleBuyNow}
                   disabled={selectedVariant.stock === 0}
-                  className="w-full border-2 border-blue-800 text-blue-800 py-4 rounded-xl font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="w-full border-2 border-black text-black py-4 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   <CreditCard className="w-5 h-5 mr-2" />
                   Acheter

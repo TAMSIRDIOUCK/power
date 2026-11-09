@@ -285,14 +285,12 @@ export default function CartPage() {
     }
   };
 
-  // 👇 C'EST ICI QUE LA LOGIQUE DE BOOKINGPAGE EST APPLIQUÉE 👇
   const submitOnlineOrder = async () => {
     if (!SUPABASE_URL) {
       alert('Configuration du paiement manquante (VITE_SUPABASE_URL).');
       return;
     }
 
-    // 1. Ouvre la fenêtre de paiement immédiatement pour éviter le blocage
     const paymentWindow = window.open('', '_blank');
     if (paymentWindow) {
       paymentWindow.document.write(
@@ -316,7 +314,6 @@ export default function CartPage() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          // 👇 CETTE LIGNE EST LA CLÉ POUR RÉSOUDRE LE CORS 👇
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`, 
         },
         body: JSON.stringify({
@@ -345,11 +342,9 @@ export default function CartPage() {
       }
     } catch (error: any) {
       console.error('Erreur paiement:', error);
-      // 2. On ferme le popup en cas d'erreur, et on affiche l'erreur
       paymentWindow?.close();
       alert(error.message || "Une erreur est survenue lors de l'initiation du paiement.");
     } finally {
-      // 3. On stoppe le spinner QUOI QU'IL ARRIVE
       setIsLoading(false); 
     }
   };
@@ -411,10 +406,11 @@ export default function CartPage() {
                           {percent > 0 && (
                             <div className="flex sm:justify-end items-center gap-2">
                               <span className="text-sm text-gray-400 line-through">{formatPrice(item.product.price)}</span>
-                              <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">-{percent} %</span>
+                              {/* 👇 Badge réduction en Noir & Blanc 👇 */}
+                              <span className="text-xs font-semibold text-black bg-gray-200 px-2 py-0.5 rounded-full">-{percent} %</span>
                             </div>
                           )}
-                          <p className="text-xl sm:text-2xl font-bold text-blue-800">{formatPrice(unitPrice)}</p>
+                          <p className="text-xl sm:text-2xl font-bold text-black">{formatPrice(unitPrice)}</p>
                         </div>
                       </div>
 
@@ -425,7 +421,7 @@ export default function CartPage() {
                             <select
                               value={item.variant?.size || ''}
                               onChange={(e) => updateVariant(item.cartItemId, e.target.value, item.variant?.color || '')}
-                              className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                              className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none"
                             >
                               {availableSizes.map((size) => <option key={size} value={size}>{size}</option>)}
                             </select>
@@ -437,7 +433,7 @@ export default function CartPage() {
                             <select
                               value={item.variant?.color || ''}
                               onChange={(e) => updateVariant(item.cartItemId, item.variant?.size || '', e.target.value)}
-                              className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                              className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none"
                             >
                               {availableColors.map((color) => <option key={color} value={color}>{color}</option>)}
                             </select>
@@ -484,37 +480,39 @@ export default function CartPage() {
               <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6">Informations Client</h3>
               
               <div className="space-y-3 mb-4 sm:mb-6">
-                <input type="text" placeholder="Prénom *" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-                <input type="text" placeholder="Nom *" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-                <input type="tel" placeholder="Téléphone *" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-                <input type="email" placeholder="Email (optionnel)" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                <input type="text" placeholder="Prénom *" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+                <input type="text" placeholder="Nom *" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+                <input type="tel" placeholder="Téléphone *" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+                <input type="email" placeholder="Email (optionnel)" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
                 
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Pays *</label>
                   <CountrySelect value={countryCode} onChange={setCountryCode} />
                 </div>
 
-                <input type="text" placeholder="Adresse *" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                <input type="text" placeholder="Adresse *" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
                 <div className="grid grid-cols-2 gap-3">
-                  <input type="text" placeholder="Ville *" value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-                  <input type="text" placeholder="Région" value={region} onChange={(e) => setRegion(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input type="text" placeholder="Ville *" value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+                  <input type="text" placeholder="Région" value={region} onChange={(e) => setRegion(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
                 </div>
               </div>
 
-              <div className="mb-4 sm:mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs sm:text-sm text-blue-800">
+              {/* 👇 Message livraison en Gris 👇 */}
+              <div className="mb-4 sm:mb-6 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-800">
                 🚚 Les frais de livraison seront convenus directement avec la boutique après validation de votre commande.
               </div>
 
               <div className="mb-4 sm:mb-6">
                 <h4 className="text-base sm:text-lg font-medium mb-2 sm:mb-3">Mode de paiement</h4>
                 <div className="space-y-2">
+                  {/* 👇 Bouton Payer en ligne en Noir & Blanc 👇 */}
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('online')}
-                    className={`w-full text-left p-3 border rounded-lg transition ${paymentMethod === 'online' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`w-full text-left p-3 border rounded-lg transition ${paymentMethod === 'online' ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
                   >
                     <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-blue-700" />
+                      <CreditCard className="w-4 h-4 text-black" />
                       <span className="text-sm sm:text-base font-medium">Payer en ligne — Wave / Orange Money</span>
                     </div>
                     <div className="text-xs sm:text-sm text-gray-500 mt-1">Paiement sécurisé via PayDunya.</div>
@@ -523,7 +521,7 @@ export default function CartPage() {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cod')}
-                    className={`w-full text-left p-3 border rounded-lg transition ${paymentMethod === 'cod' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`w-full text-left p-3 border rounded-lg transition ${paymentMethod === 'cod' ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
                   >
                     <span className="text-sm sm:text-base font-medium">Paiement à la livraison</span>
                     <div className="text-xs sm:text-sm text-gray-500 mt-1">Vous payez à la réception de votre commande</div>
@@ -542,23 +540,24 @@ export default function CartPage() {
                     value={promoInput}
                     onChange={(e) => setPromoInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyPromoCode(); } }}
-                    className="flex-1 min-w-0 px-3 py-2.5 text-sm border rounded-lg uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="flex-1 min-w-0 px-3 py-2.5 text-sm border rounded-lg uppercase focus:ring-2 focus:ring-black outline-none"
                   />
-                  <button type="button" onClick={applyPromoCode} disabled={!promoInput.trim()} className="px-4 py-2.5 text-sm font-medium bg-blue-800 text-white rounded-lg hover:bg-blue-900 disabled:opacity-50">
+                  {/* 👇 Bouton Appliquer en Noir 👇 */}
+                  <button type="button" onClick={applyPromoCode} disabled={!promoInput.trim()} className="px-4 py-2.5 text-sm font-medium bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50">
                     Appliquer
                   </button>
                 </div>
 
                 {promoMessage && (
-                  <p className={`text-xs sm:text-sm mt-2 ${promoMessage.type === 'success' ? 'text-green-700' : 'text-red-600'}`}>{promoMessage.text}</p>
+                  <p className={`text-xs sm:text-sm mt-2 ${promoMessage.type === 'success' ? 'text-black font-medium' : 'text-red-600'}`}>{promoMessage.text}</p>
                 )}
 
                 {appliedCodes.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {appliedCodes.map((code) => (
-                      <span key={code} className="inline-flex items-center gap-1 text-xs font-medium bg-green-100 text-green-800 px-2.5 py-1 rounded-full">
+                      <span key={code} className="inline-flex items-center gap-1 text-xs font-medium bg-gray-200 text-black px-2.5 py-1 rounded-full">
                         {code}
-                        <button type="button" onClick={() => removePromoCode(code)} className="hover:text-green-950"><X className="w-3 h-3" /></button>
+                        <button type="button" onClick={() => removePromoCode(code)} className="hover:text-gray-600"><X className="w-3 h-3" /></button>
                       </span>
                     ))}
                   </div>
@@ -572,21 +571,22 @@ export default function CartPage() {
                   <span>{formatPrice(originalSubtotal)}</span>
                 </div>
                 {discountTotal > 0 && (
-                  <div className="flex justify-between text-sm sm:text-base text-green-700">
+                  <div className="flex justify-between text-sm sm:text-base text-black font-medium">
                     <span>Réduction</span>
                     <span>-{formatPrice(discountTotal)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-lg sm:text-xl font-bold border-t pt-2 sm:pt-3">
                   <span>Total</span>
-                  <span className="text-blue-800">{formatPrice(total)}</span>
+                  <span className="text-black">{formatPrice(total)}</span>
                 </div>
               </div>
 
+              {/* 👇 Bouton Payer en Noir 👇 */}
               <button
                 onClick={handleOrderSubmit}
                 disabled={isLoading || state.cart.length === 0}
-                className={`w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3.5 sm:py-4 text-sm sm:text-base rounded-lg font-medium hover:bg-green-700 mt-4 sm:mt-6 transition-colors ${isLoading || state.cart.length === 0 ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`w-full flex items-center justify-center gap-2 bg-black text-white py-3.5 sm:py-4 text-sm sm:text-base rounded-lg font-medium hover:bg-gray-800 mt-4 sm:mt-6 transition-colors ${isLoading || state.cart.length === 0 ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {paymentMethod === 'online' ? <CreditCard className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
                 {isLoading ? 'Traitement...' : paymentMethod === 'online' ? `Payer ${formatPrice(total)}` : 'Commander via WhatsApp'}
@@ -604,7 +604,7 @@ export default function CartPage() {
           <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 text-center max-w-sm w-full">
             {!paymentError ? (
               <>
-                <Loader className="w-12 h-12 text-blue-700 mx-auto mb-4 animate-spin" />
+                <Loader className="w-12 h-12 text-black mx-auto mb-4 animate-spin" />
                 <h2 className="text-xl font-bold text-gray-900 mb-2">Paiement en attente</h2>
                 <p className="text-sm text-gray-600 mb-4">Terminez le paiement dans l'onglet PayDunya qui vient de s'ouvrir. Cette page se met à jour automatiquement.</p>
                 <p className="text-xs text-gray-500 mb-4">Commande {formatOrderNumber(waitingOrderId)}</p>
@@ -625,8 +625,8 @@ export default function CartPage() {
       {showSuccess && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 text-center max-w-sm sm:max-w-md w-full animate-in fade-in zoom-in duration-300">
-            <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-green-500 mx-auto mb-3 sm:mb-4" />
-            <h2 className="text-xl sm:text-2xl font-bold text-green-700 mb-2">
+            <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-black mx-auto mb-3 sm:mb-4" />
+            <h2 className="text-xl sm:text-2xl font-bold text-black mb-2">
               {paidOnline ? 'Paiement confirmé 🎉' : 'Commande confirmée 🎉'}
             </h2>
             <p className="text-sm sm:text-base text-gray-600 mb-2">
@@ -637,7 +637,7 @@ export default function CartPage() {
             ) : (
               <>
                 <p className="text-xs sm:text-sm text-gray-600 mb-4">La boutique a été notifiée via WhatsApp. Elle vous contactera rapidement.</p>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs sm:text-sm text-green-800">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs sm:text-sm text-gray-800">
                   📱 Si WhatsApp ne s'est pas ouvert automatiquement, vérifiez que les pop-ups sont autorisés.
                 </div>
               </>

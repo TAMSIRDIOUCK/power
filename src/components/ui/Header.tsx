@@ -79,7 +79,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {before}
-      <mark className="bg-[#BCDAED] text-[#1A1A1A] rounded px-0.5">{match}</mark>
+      <mark className="bg-gray-300 text-black rounded px-0.5">{match}</mark>
       {after}
     </>
   );
@@ -88,14 +88,12 @@ function Highlight({ text, query }: { text: string; query: string }) {
 export default function Header({}: HeaderProps) {
   const { state, dispatch } = useApp();
   
-  // États Menu & Modale Vendeur
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showVendorModal, setShowVendorModal] = useState(false); // Nouvelle modale
+  const [showVendorModal, setShowVendorModal] = useState(false);
   const [code, setCode] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const navigate = useNavigate();
 
-  // États Recherche
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -106,7 +104,6 @@ export default function Header({}: HeaderProps) {
   const cartItemsCount = state.cart.reduce((total, item) => total + item.quantity, 0);
   const VENDOR_CODE = 'AB123';
 
-  // --- Persistance vue ---
   useEffect(() => {
     const savedView = localStorage.getItem('currentView') as 'customer' | 'vendor' | null;
     if (savedView === 'customer' || savedView === 'vendor') {
@@ -118,7 +115,6 @@ export default function Header({}: HeaderProps) {
     localStorage.setItem('currentView', state.currentView);
   }, [state.currentView]);
 
-  // --- Alertes ---
   useEffect(() => {
     if (alertMessage) {
       const timer = setTimeout(() => setAlertMessage(''), 3000);
@@ -126,7 +122,6 @@ export default function Header({}: HeaderProps) {
     }
   }, [alertMessage]);
 
-  // --- Historique de recherche ---
   useEffect(() => {
     try {
       const saved = localStorage.getItem('recentSearches');
@@ -134,7 +129,6 @@ export default function Header({}: HeaderProps) {
     } catch { /* ignore */ }
   }, []);
 
-  // --- Focus recherche ---
   useEffect(() => {
     if (isSearchOpen) {
       const t = setTimeout(() => searchInputRef.current?.focus(), 100);
@@ -145,7 +139,6 @@ export default function Header({}: HeaderProps) {
     }
   }, [isSearchOpen]);
 
-  // --- Fermer recherche au clic extérieur ---
   useEffect(() => {
     if (!isSearchOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -157,7 +150,6 @@ export default function Header({}: HeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isSearchOpen]);
 
-  // --- Raccourcis clavier ---
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -174,7 +166,6 @@ export default function Header({}: HeaderProps) {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // --- Produits pour la recherche ---
   const products: SearchResult[] = useMemo(() => {
     const raw = (state as any).products;
     if (!Array.isArray(raw)) return [];
@@ -232,16 +223,13 @@ export default function Header({}: HeaderProps) {
     }
   };
 
-  // --- Logique Vendeur (CORRIGÉE) ---
   const handleOpenVendorModal = () => {
     if (state.currentView === 'vendor') {
-      // Si déjà vendeur, on repasse en client
       dispatch({ type: 'SET_VIEW', payload: 'customer' });
       closeMenu();
     } else {
-      // Sinon, on ouvre la modale centrée
       setShowVendorModal(true);
-      setIsMenuOpen(false); // On ferme le menu pour laisser place à la modale
+      setIsMenuOpen(false);
     }
   };
 
@@ -272,22 +260,19 @@ export default function Header({}: HeaderProps) {
 
   return (
     <header className="bg-white sticky top-0 z-50 shadow-sm">
-      {/* Message central */}
       {alertMessage && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#8BB8D6] text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-fade text-center max-w-xs sm:max-w-sm">
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-fade text-center max-w-xs sm:max-w-sm">
           {alertMessage}
         </div>
       )}
 
-      {/* 1. Bannière défilante */}
-      <div className="bg-[#BCDAED] text-[#1A1A1A] py-2 overflow-hidden relative w-full">
+      <div className="bg-gray-100 text-gray-900 py-2 overflow-hidden relative w-full border-b border-gray-200">
         <div className="flex whitespace-nowrap animate-marquee">
           <span className="mx-4 text-xs sm:text-sm font-medium tracking-wide">Découvrez nos nouveaux produits</span>
           <span className="mx-4 text-xs sm:text-sm font-medium tracking-wide">- Découvrez nos nouveaux produits</span>
         </div>
       </div>
 
-      {/* 2. Barre de navigation principale */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           
@@ -296,7 +281,7 @@ export default function Header({}: HeaderProps) {
               if (isMenuOpen) closeMenu();
               else setIsMenuOpen(true);
             }}
-            className="p-2 -ml-2 text-[#1A1A1A] hover:opacity-75 transition-opacity z-[60]"
+            className="p-2 -ml-2 text-black hover:opacity-75 transition-opacity z-[60]"
             aria-label="Menu"
           >
             {isMenuOpen ? <X className="w-6 h-6" strokeWidth={1.5} /> : <Menu className="w-6 h-6" strokeWidth={1.5} />}
@@ -312,16 +297,16 @@ export default function Header({}: HeaderProps) {
                 setIsSearchOpen((v) => !v);
                 if (isMenuOpen) closeMenu();
               }}
-              className="text-[#1A1A1A] hover:opacity-75 transition-opacity z-[60]"
+              className="text-black hover:opacity-75 transition-opacity z-[60]"
               aria-label="Rechercher"
             >
               {isSearchOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.5} /> : <Search className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.5} />}
             </button>
             
-            <button onClick={() => navigate('/cart')} className="relative text-[#1A1A1A] hover:opacity-75 transition-opacity" aria-label="Panier">
+            <button onClick={() => navigate('/cart')} className="relative text-black hover:opacity-75 transition-opacity" aria-label="Panier">
               <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.5} />
               {cartItemsCount > 0 && (
-                <span className="absolute -top-1 -right-2 bg-[#4A3224] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                <span className="absolute -top-1 -right-2 bg-black text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                   {cartItemsCount}
                 </span>
               )}
@@ -330,7 +315,6 @@ export default function Header({}: HeaderProps) {
         </div>
       </div>
 
-      {/* 2bis. Panneau de recherche */}
       {isSearchOpen && (
         <div ref={searchContainerRef} className="border-t border-gray-200 bg-white shadow-md animate-search-slide relative z-[60]">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
@@ -343,7 +327,7 @@ export default function Header({}: HeaderProps) {
                 onChange={(e) => { setSearchQuery(e.target.value); setHighlightedIndex(-1); }}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Rechercher un produit…"
-                className="w-full pl-12 pr-10 py-3 rounded-full border border-gray-300 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8BB8D6] focus:border-transparent"
+                className="w-full pl-12 pr-10 py-3 rounded-full border border-gray-300 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                 aria-label="Recherche"
               />
               {searchQuery && (
@@ -359,13 +343,13 @@ export default function Header({}: HeaderProps) {
                   <ul className="divide-y divide-gray-100">
                     {results.map((r, i) => (
                       <li key={r.id}>
-                        <button onMouseEnter={() => setHighlightedIndex(i)} onClick={() => performSearch(r.name)} className={`w-full text-left px-3 py-3 flex items-center gap-3 rounded-md transition-colors ${highlightedIndex === i ? 'bg-[#BCDAED]/40' : 'hover:bg-gray-50'}`}>
+                        <button onMouseEnter={() => setHighlightedIndex(i)} onClick={() => performSearch(r.name)} className={`w-full text-left px-3 py-3 flex items-center gap-3 rounded-md transition-colors ${highlightedIndex === i ? 'bg-gray-200' : 'hover:bg-gray-50'}`}>
                           {r.image ? <img src={r.image} alt={r.name} className="w-10 h-10 object-cover rounded-md flex-shrink-0" /> : <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center flex-shrink-0"><Search className="w-4 h-4 text-gray-400" /></div>}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-[#1A1A1A] truncate"><Highlight text={r.name} query={searchQuery} /></p>
+                            <p className="text-sm font-medium text-black truncate"><Highlight text={r.name} query={searchQuery} /></p>
                             {r.category && <p className="text-xs text-gray-500 truncate">{r.category}</p>}
                           </div>
-                          {typeof r.price === 'number' && <span className="text-sm font-semibold text-[#4A3224] flex-shrink-0">{r.price.toLocaleString('fr-FR')} F</span>}
+                          {typeof r.price === 'number' && <span className="text-sm font-semibold text-black flex-shrink-0">{r.price.toLocaleString('fr-FR')} F</span>}
                         </button>
                       </li>
                     ))}
@@ -381,7 +365,7 @@ export default function Header({}: HeaderProps) {
                 <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500 mb-2"><Clock className="w-3.5 h-3.5" /> Recherches récentes</div>
                 <div className="flex flex-wrap gap-2">
                   {recentSearches.map((term) => (
-                    <button key={term} onClick={() => { setSearchQuery(term); searchInputRef.current?.focus(); }} className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-[#BCDAED] rounded-full transition-colors">{term}</button>
+                    <button key={term} onClick={() => { setSearchQuery(term); searchInputRef.current?.focus(); }} className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-black rounded-full transition-colors">{term}</button>
                   ))}
                 </div>
               </div>
@@ -390,34 +374,33 @@ export default function Header({}: HeaderProps) {
         </div>
       )}
 
-      {/* 3. Menu Drawer */}
       {isMenuOpen && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40 animate-fade-in" onClick={closeMenu}></div>
           
           <div className="fixed top-0 left-0 h-[100dvh] w-[280px] sm:w-[320px] bg-white z-50 shadow-2xl flex flex-col animate-slide-in">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between shrink-0">
-              <span className="font-semibold text-lg text-[#4A3224]">Menu</span>
-              <button onClick={closeMenu} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100 transition-colors">
+              <span className="font-semibold text-lg text-black">Menu</span>
+              <button onClick={closeMenu} className="p-2 text-gray-500 hover:text-black rounded-full hover:bg-gray-100 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-2">
-              <Link to="/" onClick={closeMenu} className="flex items-center gap-3 px-4 py-3 text-base font-medium text-gray-700 rounded-lg hover:bg-[#BCDAED]/30 hover:text-[#4A3224] transition-colors">
+              <Link to="/" onClick={closeMenu} className="flex items-center gap-3 px-4 py-3 text-base font-medium text-gray-700 rounded-lg hover:bg-gray-100 hover:text-black transition-colors">
                 Accueil
               </Link>
-              <Link to="/shop" onClick={closeMenu} className="flex items-center gap-3 px-4 py-3 text-base font-medium text-gray-700 rounded-lg hover:bg-[#BCDAED]/30 hover:text-[#4A3224] transition-colors">
+              <Link to="/shop" onClick={closeMenu} className="flex items-center gap-3 px-4 py-3 text-base font-medium text-gray-700 rounded-lg hover:bg-gray-100 hover:text-black transition-colors">
                 Boutique
               </Link>
-              <a href="#footer" onClick={scrollToFooter} className="flex items-center gap-3 px-4 py-3 text-base font-medium text-gray-700 rounded-lg hover:bg-[#BCDAED]/30 hover:text-[#4A3224] transition-colors">
+              <a href="#footer" onClick={scrollToFooter} className="flex items-center gap-3 px-4 py-3 text-base font-medium text-gray-700 rounded-lg hover:bg-gray-100 hover:text-black transition-colors">
                 Contact
               </a>
 
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <button
                   onClick={handleOpenVendorModal}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-[#4A3224] border border-[#4A3224] rounded-lg hover:bg-[#4A3224] hover:text-white transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-black border border-black rounded-lg hover:bg-black hover:text-white transition-colors"
                 >
                   {state.currentView === 'customer' ? (
                     <><User className="w-4 h-4" /> Espace Vendeur</>
@@ -431,13 +414,12 @@ export default function Header({}: HeaderProps) {
         </>
       )}
 
-      {/* 4. Modale Vendeur Centrée (LA CORRECTION EST ICI) */}
       {showVendorModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-scale-in">
             <div className="text-center mb-6">
-              <div className="w-12 h-12 bg-[#BCDAED]/30 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Lock className="w-6 h-6 text-[#4A3224]" />
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Lock className="w-6 h-6 text-black" />
               </div>
               <h2 className="text-xl font-bold text-gray-900">Accès Vendeur</h2>
               <p className="text-sm text-gray-500 mt-1">Entrez le code secret de la boutique</p>
@@ -449,8 +431,7 @@ export default function Header({}: HeaderProps) {
                 placeholder="Code secret (ex: AB123)"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                // text-base = 16px empêche iOS de zoomer
-                className="w-full px-4 py-3 text-base border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8BB8D6] text-center tracking-widest"
+                className="w-full px-4 py-3 text-base border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black text-center tracking-widest"
                 autoComplete="off"
                 autoCapitalize="off"
                 autoCorrect="off"
@@ -471,7 +452,7 @@ export default function Header({}: HeaderProps) {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-3 bg-[#8BB8D6] text-white font-medium rounded-xl hover:bg-[#7aa7c4] transition-colors shadow-sm"
+                  className="flex-1 px-4 py-3 bg-black text-white font-medium rounded-xl hover:bg-gray-800 transition-colors shadow-sm"
                 >
                   Valider
                 </button>
@@ -481,7 +462,6 @@ export default function Header({}: HeaderProps) {
         </div>
       )}
 
-      {/* Animations CSS */}
       <style>{`
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .animate-marquee { animation: marquee 20s linear infinite; }

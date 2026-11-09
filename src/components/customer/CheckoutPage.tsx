@@ -52,7 +52,6 @@ export default function CheckoutPage() {
       return;
     }
     
-    // Vérifier les champs obligatoires avant envoi
     if (!formData.firstName || !formData.lastName || !formData.phone || !formData.address || !formData.city) {
       alert("Veuillez remplir tous les champs obligatoires.");
       return;
@@ -61,7 +60,6 @@ export default function CheckoutPage() {
     setIsLoading(true);
     
     try {
-      // 1. Insérer dans orders2
       const { data: orderData, error: orderError } = await supabase
         .from('orders2')
         .insert({
@@ -84,7 +82,6 @@ export default function CheckoutPage() {
         return;
       }
       
-      // 2. Insérer les articles dans order_items2
       const itemsToInsert = state.cart.map(item => ({
         order_id: orderData.id,
         product_id: item.product.id,
@@ -107,7 +104,6 @@ export default function CheckoutPage() {
         return;
       }
       
-      // Succès
       dispatch({ type: 'CLEAR_CART' });
       alert('Commande confirmée ! Vous recevrez un SMS de confirmation.');
       window.location.href = '/';
@@ -130,7 +126,7 @@ export default function CheckoutPage() {
             required
             value={formData.firstName}
             onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black"
           />
         </div>
         <div>
@@ -140,7 +136,7 @@ export default function CheckoutPage() {
             required
             value={formData.lastName}
             onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black"
           />
         </div>
       </div>
@@ -150,7 +146,7 @@ export default function CheckoutPage() {
           type="email"
           value={formData.email}
           onChange={(e) => setFormData({...formData, email: e.target.value})}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black"
         />
       </div>
       <div>
@@ -161,7 +157,7 @@ export default function CheckoutPage() {
           value={formData.phone}
           onChange={(e) => setFormData({...formData, phone: e.target.value})}
           placeholder="+221 XX XXX XX XX"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black"
         />
       </div>
       <div>
@@ -171,7 +167,7 @@ export default function CheckoutPage() {
           value={formData.address}
           onChange={(e) => setFormData({...formData, address: e.target.value})}
           rows={3}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black"
           placeholder="Numéro, rue, quartier..."
         />
       </div>
@@ -181,7 +177,7 @@ export default function CheckoutPage() {
           <select
             value={formData.city}
             onChange={(e) => setFormData({...formData, city: e.target.value})}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black"
           >
             <option value="Dakar">Dakar</option>
             <option value="Thiès">Thiès</option>
@@ -196,7 +192,7 @@ export default function CheckoutPage() {
           <select
             value={formData.region}
             onChange={(e) => setFormData({...formData, region: e.target.value})}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black"
           >
             <option value="Dakar">Dakar</option>
             <option value="Thiès">Thiès</option>
@@ -220,7 +216,7 @@ export default function CheckoutPage() {
               key={option.id}
               className={`p-4 border rounded-lg cursor-pointer transition-all ${
                 formData.shippingOptionId === option.id
-                  ? 'border-blue-500 bg-blue-50'
+                  ? 'border-black bg-gray-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
               onClick={() => setFormData({...formData, shippingOptionId: option.id})}
@@ -247,7 +243,7 @@ export default function CheckoutPage() {
               key={method.id}
               className={`p-4 border rounded-lg cursor-pointer transition-all ${
                 formData.paymentMethodId === method.id
-                  ? 'border-blue-500 bg-blue-50'
+                  ? 'border-black bg-gray-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
               onClick={() => setFormData({...formData, paymentMethodId: method.id})}
@@ -304,13 +300,13 @@ export default function CheckoutPage() {
           </div>
           <div className="flex justify-between text-lg font-bold border-t pt-2">
             <span>Total</span>
-            <span className="text-blue-800">{formatPrice(total)}</span>
+            <span className="text-black">{formatPrice(total)}</span>
           </div>
         </div>
       </div>
-      <div className="bg-blue-50 p-6 rounded-lg">
-        <h4 className="font-medium text-blue-900 mb-2">Informations de livraison</h4>
-        <p className="text-blue-800 text-sm">
+      <div className="bg-gray-100 p-6 rounded-lg border border-gray-200">
+        <h4 className="font-medium text-black mb-2">Informations de livraison</h4>
+        <p className="text-gray-800 text-sm">
           {formData.firstName} {formData.lastName}<br />
           {formData.address}<br />
           {formData.city}, {formData.region}<br />
@@ -326,7 +322,7 @@ export default function CheckoutPage() {
         <div className="mb-8">
           <button
             onClick={() => window.history.back()}
-            className="flex items-center text-blue-600 hover:text-blue-800 transition-colors mb-4"
+            className="flex items-center text-black hover:text-gray-600 transition-colors mb-4"
           >
             <ArrowLeft className="w-5 h-5 mr-2" />
             Retour au panier
@@ -340,13 +336,13 @@ export default function CheckoutPage() {
             {[1, 2, 3].map((stepNumber) => (
               <div key={stepNumber} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step >= stepNumber ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
+                  step >= stepNumber ? 'bg-black text-white' : 'bg-gray-200 text-gray-500'
                 }`}>
                   {stepNumber}
                 </div>
                 <div className="ml-3 hidden sm:block">
                   <div className={`text-sm font-medium ${
-                    step >= stepNumber ? 'text-blue-600' : 'text-gray-500'
+                    step >= stepNumber ? 'text-black' : 'text-gray-500'
                   }`}>
                     {stepNumber === 1 && 'Informations'}
                     {stepNumber === 2 && 'Livraison & Paiement'}
@@ -379,7 +375,7 @@ export default function CheckoutPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="px-6 py-3 bg-blue-800 text-white rounded-lg hover:bg-blue-900 transition-colors ml-auto disabled:opacity-50"
+              className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors ml-auto disabled:opacity-50"
             >
               {isLoading ? 'Envoi...' : (step === 3 ? 'Confirmer la commande' : 'Continuer')}
             </button>

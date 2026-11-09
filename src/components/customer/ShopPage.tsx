@@ -1,5 +1,6 @@
 // src/components/customer/ShopPage.tsx
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // 👈 Ajouté pour la redirection
 import { useApp } from '../../context/AppContext';
 import { Product } from '../../types';
 import ProductDetailPage from './ProductDetailPage';
@@ -7,6 +8,7 @@ import ProductDetailPage from './ProductDetailPage';
 export default function ShopPage() {
   const { state, dispatch } = useApp();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const navigate = useNavigate(); // 👈 Ajouté
 
   const handleViewDetails = (product: Product) => {
     setSelectedProduct(product);
@@ -42,6 +44,11 @@ export default function ShopPage() {
       <ProductDetailPage
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
+        // 👇 Ajout de la prop manquante pour corriger l'erreur TypeScript
+        onGoToCart={() => {
+          setSelectedProduct(null);
+          navigate('/cart');
+        }}
       />
     );
   }

@@ -1,3 +1,4 @@
+// src/components/customer/ProductCard.tsx
 import React from 'react';
 import { ShoppingCart, Eye } from 'lucide-react';
 import { Product } from '../../types';
@@ -31,7 +32,7 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
   const isInStock = product.variants.some(v => v.stock > 0);
 
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 group">
+    <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 group border border-gray-100">
       <div className="relative overflow-hidden">
         <img
           src={product.images[0]}
@@ -42,14 +43,14 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
           <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex space-x-2">
             <button
               onClick={() => onViewDetails?.(product.id)}
-              className="bg-white text-gray-800 p-2 rounded-full hover:bg-gray-100 transition-colors"
+              className="bg-white text-black p-2 rounded-full hover:bg-gray-100 transition-colors shadow-sm"
             >
               <Eye className="w-5 h-5" />
             </button>
             {isInStock && (
               <button
                 onClick={handleAddToCart}
-                className="bg-blue-800 text-white p-2 rounded-full hover:bg-blue-900 transition-colors"
+                className="bg-black text-white p-2 rounded-full hover:bg-gray-800 transition-colors shadow-sm"
               >
                 <ShoppingCart className="w-5 h-5" />
               </button>
@@ -57,7 +58,7 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
           </div>
         </div>
         {!isInStock && (
-          <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+          <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 rounded-full text-sm font-medium">
             Rupture de stock
           </div>
         )}
@@ -73,7 +74,7 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
         </p>
         
         <div className="flex items-center justify-between mb-4">
-          <span className="text-2xl font-bold text-blue-800">
+          <span className="text-2xl font-bold text-black">
             {formatPrice(product.price)}
           </span>
           <div className="text-sm text-gray-500">
@@ -101,7 +102,7 @@ export default function ProductCard({ product, onAddToCart, onViewDetails }: Pro
           {isInStock && (
             <button
               onClick={handleAddToCart}
-              className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors"
+              className="px-4 py-2 bg-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
             >
               Ajouter
             </button>
