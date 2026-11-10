@@ -37,8 +37,8 @@ interface Order {
 }
 
 // ⚠️ CONFIGURATION DU NUMÉRO DE RETRAIT
-const VENDOR_WITHDRAW_PHONE = "704776258"; // 👈 Sans le +221 ni espaces
-const VENDOR_WITHDRAW_MODE = "wave-senegal"; // 👈 "wave-senegal" ou "orange-money-senegal"
+const VENDOR_WITHDRAW_PHONE = "704776258";
+const VENDOR_WITHDRAW_MODE = "wave-senegal";
 
 const PAYDUNYA_FEE_PERCENT = 0.02;
 const DELIVERY_FEE = 1000;
@@ -85,13 +85,12 @@ export default function VendorDashboard() {
 
   const fetchOrders = async () => {
     setLoadingOrders(true);
-    
-    // 👇 SÉCURITÉ : On sélectionne les colonnes avec un fallback si payment_method n'existe pas
     const { data, error } = await supabase
       .from('orders2')
       .select(`
         id, created_at, total, first_name, last_name,
         phone, address, is_paid, paid_at, status,
+        payment_method,
         order_items:order_items2 (
           id, quantity, variant_color, variant_size,
           product_image, product_name, product_price
@@ -99,13 +98,8 @@ export default function VendorDashboard() {
       `)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Erreur de récupération des commandes:', error);
-      setLoadingOrders(false);
-      return;
-    }
+    if (error) { console.error(error); setLoadingOrders(false); return; }
 
-    // 👇 On mappe les données avec des valeurs par défaut pour éviter les crashs
     const formatted: Order[] = (data || []).map((o: any) => ({
       id: o.id,
       created_at: o.created_at,
@@ -117,8 +111,7 @@ export default function VendorDashboard() {
       is_paid: o.is_paid || false,
       paid_at: o.paid_at,
       status: o.status || 'pending',
-      // 👇 Sécurité : si payment_method n'existe pas dans la DB, on met 'cod' par défaut
-      payment_method: o.payment_method || 'cod',
+      payment_method: o.payment_method || null, // 👈 Plus de 'cod' par défaut
       order_items: o.order_items || [],
     }));
 
@@ -164,13 +157,12 @@ export default function VendorDashboard() {
     product.variants.reduce((sum, v) => sum + v.stock, 0);
 
   // --- CALCULS FINANCIERS ---
-  
   const onlinePaidOrders = orders.filter(o => o.is_paid && o.payment_method === 'online');
   const totalOnlineBrut = onlinePaidOrders.reduce((sum, o) => sum + o.total + DELIVERY_FEE, 0);
   const totalOnlineFees = totalOnlineBrut * PAYDUNYA_FEE_PERCENT;
   const totalOnlineNet = totalOnlineBrut - totalOnlineFees;
 
-  const codPaidOrders = orders.filter(o => o.is_paid && o.payment_method !== 'online');
+  const codPaidOrders = orders.filter(o => o.is_paid && o.payment_method === 'cod');
   const totalCod = codPaidOrders.reduce((sum, o) => sum + o.total + DELIVERY_FEE, 0);
 
   const stats = {
@@ -187,7 +179,6 @@ export default function VendorDashboard() {
     ? orders
     : orders.filter(o => o.status === statusFilter);
 
-  // 👇 FONCTION DE RETRAIT AVEC GESTION D'ERREUR DÉTAILLÉE 👇
   const handleWithdraw = async () => {
     if (totalOnlineNet <= 0) return;
     
@@ -254,7 +245,6 @@ export default function VendorDashboard() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6 text-black">Tableau de Bord Vendeur</h1>
 
-        {/* Tabs */}
         <div className="mb-6 flex gap-6 border-b">
           {tabs.map(tab => (
             <button
@@ -276,7 +266,6 @@ export default function VendorDashboard() {
           ))}
         </div>
 
-        {/* ── Vue d'ensemble ── */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -344,7 +333,6 @@ export default function VendorDashboard() {
           </div>
         )}
 
-        {/* ── Commandes ── */}
         {activeTab === 'orders' && (
           <div>
             <div className="flex gap-2 mb-4 flex-wrap">
@@ -526,7 +514,6 @@ export default function VendorDashboard() {
           </div>
         )}
 
-        {/* ── Produits ── */}
         {activeTab === 'products' && (
           <div>
             <div className="flex justify-between items-center mb-6">
