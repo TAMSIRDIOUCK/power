@@ -6,7 +6,7 @@ import {
   Wallet, ArrowDownToLine
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
-import { FunctionsHttpError } from '@supabase/supabase-js'; // 👈 Import ajouté
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import AddProductForm from './AddProductForm';
 import { Product } from '../../types';
 import { convertSupabaseProductToProduct } from '../../context/AppContext';
@@ -37,11 +37,10 @@ interface Order {
 }
 
 // ⚠️ CONFIGURATION DU NUMÉRO DE RETRAIT
-// PayDunya attend un numéro sans le "+" ni les espaces, et sans le code pays (ex: 704776258)
-const VENDOR_WITHDRAW_PHONE = "704776258"; // 👈 MODIFIEZ CE NUMÉRO
+const VENDOR_WITHDRAW_PHONE = "704776258"; // 👈 Sans le +221 ni espaces
 const VENDOR_WITHDRAW_MODE = "wave-senegal"; // 👈 "wave-senegal" ou "orange-money-senegal"
 
-const PAYDUNYA_FEE_PERCENT = 0.02; // 2% de frais PayDunya
+const PAYDUNYA_FEE_PERCENT = 0.02;
 const DELIVERY_FEE = 1000;
 
 const formatPrice = (price: number) =>
@@ -86,11 +85,13 @@ export default function VendorDashboard() {
 
   const fetchOrders = async () => {
     setLoadingOrders(true);
+    
+    // 👇 SÉCURITÉ : On sélectionne les colonnes avec un fallback si payment_method n'existe pas
     const { data, error } = await supabase
       .from('orders2')
       .select(`
         id, created_at, total, first_name, last_name,
-        phone, address, is_paid, paid_at, status, payment_method,
+        phone, address, is_paid, paid_at, status,
         order_items:order_items2 (
           id, quantity, variant_color, variant_size,
           product_image, product_name, product_price
@@ -98,8 +99,13 @@ export default function VendorDashboard() {
       `)
       .order('created_at', { ascending: false });
 
-    if (error) { console.error(error); setLoadingOrders(false); return; }
+    if (error) {
+      console.error('Erreur de récupération des commandes:', error);
+      setLoadingOrders(false);
+      return;
+    }
 
+    // 👇 On mappe les données avec des valeurs par défaut pour éviter les crashs
     const formatted: Order[] = (data || []).map((o: any) => ({
       id: o.id,
       created_at: o.created_at,
@@ -111,6 +117,7 @@ export default function VendorDashboard() {
       is_paid: o.is_paid || false,
       paid_at: o.paid_at,
       status: o.status || 'pending',
+      // 👇 Sécurité : si payment_method n'existe pas dans la DB, on met 'cod' par défaut
       payment_method: o.payment_method || 'cod',
       order_items: o.order_items || [],
     }));
@@ -180,7 +187,7 @@ export default function VendorDashboard() {
     ? orders
     : orders.filter(o => o.status === statusFilter);
 
-  // 👇 VRAIE FONCTION DE RETRAIT AUTOMATIQUE 👇
+  // 👇 FONCTION DE RETRAIT AVEC GESTION D'ERREUR DÉTAILLÉE 👇
   const handleWithdraw = async () => {
     if (totalOnlineNet <= 0) return;
     
@@ -191,7 +198,6 @@ export default function VendorDashboard() {
     setIsWithdrawing(true);
 
     try {
-      // Appel à la fonction Edge Supabase qui contactera PayDunya
       const { data, error } = await supabase.functions.invoke('paydunya-payout', {
         body: {
           amount: Math.round(totalOnlineNet),
@@ -204,14 +210,11 @@ export default function VendorDashboard() {
       if (data.error) throw new Error(data.error);
 
       alert(`✅ Transfert réussi ! ${formatPrice(totalOnlineNet)} ont été envoyés sur votre compte.`);
-      
-      // Rafraîchir pour mettre à jour les soldes
       fetchOrders();
 
     } catch (err: any) {
       console.error("Erreur retrait:", err);
       
-      // 👇 Extraction du vrai message d'erreur envoyé par la fonction Edge
       if (err instanceof FunctionsHttpError) {
         try {
           const errorBody = await err.context.json();

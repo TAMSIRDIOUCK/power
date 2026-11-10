@@ -63,7 +63,7 @@ export default function CartPage() {
       return;
     }
     const matchingItems = state.cart.filter((item) =>
-      item.product.discountCodes?.some((c) => normalizeCode(c) === code)
+      item.product?.discountCodes?.some((c) => normalizeCode(c) === code)
     );
     if (matchingItems.length === 0) {
       setPromoMessage({ type: 'error', text: "Code invalide ou sans effet sur les articles de votre panier." });
@@ -79,14 +79,14 @@ export default function CartPage() {
     setPromoMessage(null);
   };
 
-  const originalSubtotal = state.cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const originalSubtotal = state.cart.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0);
   const subtotal = state.cart.reduce((sum, item) => sum + getUnitPrice(item.product) * item.quantity, 0);
   const discountTotal = originalSubtotal - subtotal;
   const total = subtotal;
 
   const hasInvalidWholesale = state.cart.some(
     (item) =>
-      (item.product.isWholesale || (item.product.category && item.product.category.toLowerCase().includes('gros'))) &&
+      (item.product?.isWholesale || (item.product?.category && item.product.category.toLowerCase().includes('gros'))) &&
       item.quantity < 15
   );
 
@@ -102,7 +102,7 @@ export default function CartPage() {
 
   const updateVariant = (cartItemId: string, newSize: string, newColor: string) => {
     const cartItem = state.cart.find((item) => item.cartItemId === cartItemId);
-    if (!cartItem) return;
+    if (!cartItem || !cartItem.product) return;
     const newVariant = cartItem.product.variants.find((v) => v.size === newSize && v.color === newColor);
     if (newVariant && newVariant.stock >= cartItem.quantity) {
       dispatch({ type: 'REMOVE_FROM_CART', payload: cartItemId });
@@ -384,8 +384,11 @@ export default function CartPage() {
             )}
 
             {state.cart.map((item) => {
-              const availableSizes = [...new Set(item.product.variants.filter((v) => v.stock > 0 && v.size).map((v) => v.size))];
-              const availableColors = [...new Set(item.product.variants.filter((v) => v.stock > 0 && v.color).map((v) => v.color))];
+              // 👇 SÉCURITÉ ANTI-CRASH AJOUTÉE ICI 👇
+              if (!item || !item.product) return null;
+
+              const availableSizes = [...new Set(item.product.variants?.filter((v) => v.stock > 0 && v.size).map((v) => v.size) || [])];
+              const availableColors = [...new Set(item.product.variants?.filter((v) => v.stock > 0 && v.color).map((v) => v.color) || [])];
               const percent = getDiscountPercent(item.product);
               const unitPrice = getUnitPrice(item.product);
 
@@ -406,7 +409,6 @@ export default function CartPage() {
                           {percent > 0 && (
                             <div className="flex sm:justify-end items-center gap-2">
                               <span className="text-sm text-gray-400 line-through">{formatPrice(item.product.price)}</span>
-                              {/* 👇 Badge réduction en Noir & Blanc 👇 */}
                               <span className="text-xs font-semibold text-black bg-gray-200 px-2 py-0.5 rounded-full">-{percent} %</span>
                             </div>
                           )}
@@ -497,7 +499,6 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* 👇 Message livraison en Gris 👇 */}
               <div className="mb-4 sm:mb-6 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-800">
                 🚚 Les frais de livraison seront convenus directement avec la boutique après validation de votre commande.
               </div>
@@ -505,7 +506,6 @@ export default function CartPage() {
               <div className="mb-4 sm:mb-6">
                 <h4 className="text-base sm:text-lg font-medium mb-2 sm:mb-3">Mode de paiement</h4>
                 <div className="space-y-2">
-                  {/* 👇 Bouton Payer en ligne en Noir & Blanc 👇 */}
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('online')}
@@ -542,7 +542,6 @@ export default function CartPage() {
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyPromoCode(); } }}
                     className="flex-1 min-w-0 px-3 py-2.5 text-sm border rounded-lg uppercase focus:ring-2 focus:ring-black outline-none"
                   />
-                  {/* 👇 Bouton Appliquer en Noir 👇 */}
                   <button type="button" onClick={applyPromoCode} disabled={!promoInput.trim()} className="px-4 py-2.5 text-sm font-medium bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50">
                     Appliquer
                   </button>
@@ -582,7 +581,6 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* 👇 Bouton Payer en Noir 👇 */}
               <button
                 onClick={handleOrderSubmit}
                 disabled={isLoading || state.cart.length === 0}
