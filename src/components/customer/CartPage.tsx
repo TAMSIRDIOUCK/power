@@ -50,7 +50,9 @@ export default function CartPage() {
   const formatPrice = (price: number) => new Intl.NumberFormat('fr-FR').format(price) + ' F CFA';
   const country = COUNTRIES.find((c) => c.code === countryCode);
 
-  const deliveryFee = DELIVERY_OPTIONS.find((o) => o.id === deliveryOption)?.fee ?? 0;
+  const currentDelivery = DELIVERY_OPTIONS.find((o) => o.id === deliveryOption) ?? DELIVERY_OPTIONS[0];
+  const deliveryFee = currentDelivery.fee;
+  const deliveryLabel = currentDelivery.label;
 
   const getDiscountPercent = (product: Product): number => {
     const percent = product.discountPercent ?? 0;
@@ -91,6 +93,7 @@ export default function CartPage() {
   const originalSubtotal = state.cart.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0);
   const subtotal = state.cart.reduce((sum, item) => sum + getUnitPrice(item.product) * item.quantity, 0);
   const discountTotal = originalSubtotal - subtotal;
+  // ✅ Total affiché = sous-total produits + livraison
   const total = subtotal + deliveryFee;
 
   const hasInvalidWholesale = state.cart.some(
@@ -165,6 +168,19 @@ export default function CartPage() {
   };
 
   const createOrder = async (status: 'pending' | 'awaiting_payment', method: 'cod' | 'online') => {
+    const current = DELIVERY_OPTIONS.find((o) => o.id === deliveryOption) ?? DELIVERY_OPTIONS[0];
+    const fee = current.fee;
+    const computedSubtotal = state.cart.reduce((sum, item) => sum + getUnitPrice(item.product) * item.quantity, 0);
+
+    // ✅ TOTAL = produits + livraison (ex : 1000 + 2000 = 3000)
+    const computedTotal = computedSubtotal + fee;
+
+    console.log('[createOrder]', {
+      subtotal: computedSubtotal, // 1000
+      fee,                        // 2000
+      total: computedTotal,       // 3000
+    });
+
     const { data: orderData, error: orderError } = await supabase
       .from('orders2')
       .insert([
@@ -173,9 +189,8 @@ export default function CartPage() {
           last_name: lastName,
           phone,
           address: fullAddress(),
-          total,
-          delivery_fee: deliveryFee,
-          delivery_option: deliveryOption,
+          total: computedTotal,   // ✅ 3000 (produit + livraison)
+          delivery_fee: 0,         // ✅ 0 pour éviter tout double comptage ailleurs
           is_paid: false,
           status,
           payment_method: method,
@@ -241,7 +256,7 @@ export default function CartPage() {
       lines.push(`🏷️ Codes promo : ${appliedCodes.join(', ')}`);
       lines.push(`Réduction : -${formatPrice(discountTotal)}`);
     }
-    lines.push(`🚚 Livraison (${DELIVERY_OPTIONS.find((o) => o.id === deliveryOption)?.label}) : ${formatPrice(deliveryFee)}`);
+    lines.push(`🚚 Livraison (${deliveryLabel}) : ${formatPrice(deliveryFee)}`);
     lines.push(`💰 *TOTAL : ${formatPrice(total)}*`);
     lines.push('');
     lines.push('💳 Paiement à la livraison (espèces)');
@@ -382,7 +397,6 @@ export default function CartPage() {
               return (
                 <div key={item.cartItemId} className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                    {/* Image : même rendu que ProductDetailPage (aspect carré + object-cover + fond gris) */}
                     <div className="flex-shrink-0 w-full sm:w-32">
                       <div className="aspect-square w-full sm:w-32 bg-gray-100 rounded-lg overflow-hidden">
                         <img
@@ -461,7 +475,6 @@ export default function CartPage() {
                 <input type="tel" placeholder="Téléphone *" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
                 <input type="email" placeholder="Email (optionnel)" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
                 
-                {/* Conteneur stable pour CountrySelect : évite les erreurs insertBefore */}
                 <div className="w-full">
                   <label className="block text-xs sm:text-sm font-sans font-medium text-gray-700 mb-1">Pays *</label>
                   <CountrySelect value={countryCode} onChange={setCountryCode} />
@@ -564,7 +577,7 @@ export default function CartPage() {
                   </div>
                 )}
                 <div className="flex justify-between text-sm sm:text-base text-gray-600 font-sans">
-                  <span>Livraison ({DELIVERY_OPTIONS.find((o) => o.id === deliveryOption)?.label})</span>
+                  <span>Livraison ({deliveryLabel})</span>
                   <span>{formatPrice(deliveryFee)}</span>
                 </div>
                 <div className="flex justify-between text-lg sm:text-xl font-serif font-bold border-t pt-2 sm:pt-3">
