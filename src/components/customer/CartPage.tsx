@@ -360,7 +360,7 @@ export default function CartPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-6 sm:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-serif font-bold text-gray-900 mb-6 sm:mb-8 tracking-wide">
           Mon Panier ({state.cart.reduce((sum, item) => sum + item.quantity, 0)} article{state.cart.reduce((sum, item) => sum + item.quantity, 0) > 1 ? 's' : ''})
         </h1>
 
@@ -368,7 +368,7 @@ export default function CartPage() {
           {/* Liste des articles */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {state.cart.length === 0 && (
-              <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 text-center text-gray-500">
+              <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 text-center text-gray-500 font-sans">
                 Votre panier est vide.
               </div>
             )}
@@ -382,17 +382,24 @@ export default function CartPage() {
               return (
                 <div key={item.cartItemId} className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                    <div className="flex-shrink-0">
-                      <img src={item.product.images?.[0] || '/placeholder.png'} alt={item.product.name} className="w-full sm:w-32 h-40 sm:h-32 object-cover rounded-lg" />
+                    {/* Image : même rendu que ProductDetailPage (aspect carré + object-cover + fond gris) */}
+                    <div className="flex-shrink-0 w-full sm:w-32">
+                      <div className="aspect-square w-full sm:w-32 bg-gray-100 rounded-lg overflow-hidden">
+                        <img
+                          src={item.product.images?.[0] || '/placeholder.png'}
+                          alt={item.product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     </div>
 
                     <div className="flex-1 space-y-3 sm:space-y-4">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                         <div>
-                          <h3 className="text-lg sm:text-xl font-semibold text-gray-900">{item.product.name}</h3>
-                          <p className="text-gray-600 text-sm line-clamp-2 mt-1">{item.product.description}</p>
+                          <h3 className="text-lg sm:text-xl font-serif font-semibold text-gray-900">{item.product.name}</h3>
+                          <p className="text-gray-600 text-sm line-clamp-2 mt-1 font-sans">{item.product.description}</p>
                           {(item.variant?.size || item.variant?.color) && (
-                            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                            <p className="text-xs sm:text-sm text-gray-500 mt-1 font-sans">
                               {item.variant?.size && <>Taille : <strong>{item.variant.size}</strong></>}
                               {item.variant?.size && item.variant?.color && ' • '}
                               {item.variant?.color && <>Couleur : <strong>{item.variant.color}</strong></>}
@@ -402,22 +409,22 @@ export default function CartPage() {
                         <div className="sm:text-right whitespace-nowrap">
                           {percent > 0 && (
                             <div className="flex sm:justify-end items-center gap-2">
-                              <span className="text-sm text-gray-400 line-through">{formatPrice(item.product.price)}</span>
-                              <span className="text-xs font-semibold text-black bg-gray-200 px-2 py-0.5 rounded-full">-{percent} %</span>
+                              <span className="text-sm text-gray-400 line-through font-sans">{formatPrice(item.product.price)}</span>
+                              <span className="text-xs font-sans font-semibold text-black bg-gray-200 px-2 py-0.5 rounded-full">-{percent} %</span>
                             </div>
                           )}
-                          <p className="text-xl sm:text-2xl font-bold text-black">{formatPrice(unitPrice)}</p>
+                          <p className="text-xl sm:text-2xl font-serif font-bold text-black">{formatPrice(unitPrice)}</p>
                         </div>
                       </div>
 
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                         <div className="flex items-center space-x-3">
-                          <span className="text-sm font-medium">Quantité:</span>
+                          <span className="text-sm font-sans font-medium">Quantité:</span>
                           <div className="flex items-center border rounded-lg">
                             <button onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)} className="p-2 text-gray-400 hover:text-gray-600">
                               <Minus className="w-4 h-4" />
                             </button>
-                            <span className="px-3 sm:px-4 py-1 sm:py-2 text-base sm:text-lg font-medium">{item.quantity}</span>
+                            <span className="px-3 sm:px-4 py-1 sm:py-2 text-base sm:text-lg font-sans font-medium">{item.quantity}</span>
                             <button
                               onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
                               disabled={!!item.variant?.stock && item.quantity >= (item.variant.stock || 0)}
@@ -426,15 +433,15 @@ export default function CartPage() {
                               <Plus className="w-4 h-4" />
                             </button>
                           </div>
-                          <span className="text-xs sm:text-sm text-gray-500">(Stock: {item.variant?.stock ?? 0})</span>
+                          <span className="text-xs sm:text-sm text-gray-500 font-sans">(Stock: {item.variant?.stock ?? 0})</span>
                         </div>
-                        <button onClick={() => removeItem(item.cartItemId)} className="flex items-center text-sm text-red-500 hover:text-red-700 self-start sm:self-auto">
+                        <button onClick={() => removeItem(item.cartItemId)} className="flex items-center text-sm text-red-500 hover:text-red-700 self-start sm:self-auto font-sans">
                           <Trash2 className="w-4 h-4 mr-1" /> Supprimer
                         </button>
                       </div>
 
                       <div className="text-right pt-2 border-t sm:border-0 mt-2 sm:mt-0">
-                        <span className="text-base sm:text-lg font-semibold">Sous-total: {formatPrice(unitPrice * item.quantity)}</span>
+                        <span className="text-base sm:text-lg font-serif font-semibold">Sous-total: {formatPrice(unitPrice * item.quantity)}</span>
                       </div>
                     </div>
                   </div>
@@ -446,27 +453,27 @@ export default function CartPage() {
           {/* Formulaire + résumé */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 sticky top-4 sm:top-8">
-              <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6">Informations Client</h3>
+              <h3 className="text-lg sm:text-xl font-serif font-semibold mb-4 sm:mb-6 tracking-wide">Informations Client</h3>
               
               <div className="space-y-3 mb-4 sm:mb-6">
-                <input type="text" placeholder="Prénom *" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
-                <input type="text" placeholder="Nom *" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
-                <input type="tel" placeholder="Téléphone *" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
-                <input type="email" placeholder="Email (optionnel)" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+                <input type="text" placeholder="Prénom *" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
+                <input type="text" placeholder="Nom *" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
+                <input type="tel" placeholder="Téléphone *" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
+                <input type="email" placeholder="Email (optionnel)" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
                 
                 {/* Conteneur stable pour CountrySelect : évite les erreurs insertBefore */}
                 <div className="w-full">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Pays *</label>
+                  <label className="block text-xs sm:text-sm font-sans font-medium text-gray-700 mb-1">Pays *</label>
                   <CountrySelect value={countryCode} onChange={setCountryCode} />
                 </div>
 
-                <input type="text" placeholder="Adresse *" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
-                <input type="text" placeholder="Ville *" value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+                <input type="text" placeholder="Adresse *" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
+                <input type="text" placeholder="Ville *" value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
               </div>
 
               {/* Mode de livraison */}
               <div className="mb-4 sm:mb-6">
-                <h4 className="text-base sm:text-lg font-medium mb-2 sm:mb-3 flex items-center gap-2">
+                <h4 className="text-base sm:text-lg font-serif font-medium mb-2 sm:mb-3 flex items-center gap-2 tracking-wide">
                   <Truck className="w-4 h-4" /> Mode de livraison
                 </h4>
                 <div className="space-y-2">
@@ -475,7 +482,7 @@ export default function CartPage() {
                       key={option.id}
                       type="button"
                       onClick={() => setDeliveryOption(option.id)}
-                      className={`w-full flex items-center justify-between p-3 border rounded-lg transition ${deliveryOption === option.id ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+                      className={`w-full flex items-center justify-between p-3 border rounded-lg transition font-sans ${deliveryOption === option.id ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
                     >
                       <span className="text-sm sm:text-base font-medium">{option.label}</span>
                       <span className="text-sm sm:text-base font-semibold text-black">{formatPrice(option.fee)}</span>
@@ -485,12 +492,12 @@ export default function CartPage() {
               </div>
 
               <div className="mb-4 sm:mb-6">
-                <h4 className="text-base sm:text-lg font-medium mb-2 sm:mb-3">Mode de paiement</h4>
+                <h4 className="text-base sm:text-lg font-serif font-medium mb-2 sm:mb-3 tracking-wide">Mode de paiement</h4>
                 <div className="space-y-2">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('online')}
-                    className={`w-full text-left p-3 border rounded-lg transition ${paymentMethod === 'online' ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`w-full text-left p-3 border rounded-lg transition font-sans ${paymentMethod === 'online' ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
                   >
                     <div className="flex items-center gap-2">
                       <CreditCard className="w-4 h-4 text-black" />
@@ -502,7 +509,7 @@ export default function CartPage() {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cod')}
-                    className={`w-full text-left p-3 border rounded-lg transition ${paymentMethod === 'cod' ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`w-full text-left p-3 border rounded-lg transition font-sans ${paymentMethod === 'cod' ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
                   >
                     <span className="text-sm sm:text-base font-medium">Paiement à la livraison</span>
                     <div className="text-xs sm:text-sm text-gray-500 mt-1">Vous payez à la réception de votre commande</div>
@@ -511,7 +518,7 @@ export default function CartPage() {
               </div>
 
               <div className="mb-4 sm:mb-6">
-                <h4 className="text-base sm:text-lg font-medium mb-2 sm:mb-3 flex items-center gap-2">
+                <h4 className="text-base sm:text-lg font-serif font-medium mb-2 sm:mb-3 flex items-center gap-2 tracking-wide">
                   <Tag className="w-4 h-4" /> Code promo
                 </h4>
                 <div className="flex gap-2">
@@ -521,21 +528,21 @@ export default function CartPage() {
                     value={promoInput}
                     onChange={(e) => setPromoInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyPromoCode(); } }}
-                    className="flex-1 min-w-0 px-3 py-2.5 text-sm border rounded-lg uppercase focus:ring-2 focus:ring-black outline-none"
+                    className="flex-1 min-w-0 px-3 py-2.5 text-sm border rounded-lg uppercase focus:ring-2 focus:ring-black outline-none font-sans"
                   />
-                  <button type="button" onClick={applyPromoCode} disabled={!promoInput.trim()} className="px-4 py-2.5 text-sm font-medium bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50">
+                  <button type="button" onClick={applyPromoCode} disabled={!promoInput.trim()} className="px-4 py-2.5 text-sm font-sans font-medium bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50">
                     Appliquer
                   </button>
                 </div>
 
                 {promoMessage && (
-                  <p key={`promo-${promoMessage.type}-${promoMessage.text}`} className={`text-xs sm:text-sm mt-2 ${promoMessage.type === 'success' ? 'text-black font-medium' : 'text-red-600'}`}>{promoMessage.text}</p>
+                  <p key={`promo-${promoMessage.type}-${promoMessage.text}`} className={`text-xs sm:text-sm mt-2 font-sans ${promoMessage.type === 'success' ? 'text-black font-medium' : 'text-red-600'}`}>{promoMessage.text}</p>
                 )}
 
                 {appliedCodes.length > 0 && (
                   <div key="applied-codes" className="flex flex-wrap gap-2 mt-3">
                     {appliedCodes.map((code) => (
-                      <span key={code} className="inline-flex items-center gap-1 text-xs font-medium bg-gray-200 text-black px-2.5 py-1 rounded-full">
+                      <span key={code} className="inline-flex items-center gap-1 text-xs font-sans font-medium bg-gray-200 text-black px-2.5 py-1 rounded-full">
                         {code}
                         <button type="button" onClick={() => removePromoCode(code)} className="hover:text-gray-600"><X className="w-3 h-3" /></button>
                       </span>
@@ -544,23 +551,23 @@ export default function CartPage() {
                 )}
               </div>
 
-              <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Résumé</h3>
+              <h3 className="text-lg sm:text-xl font-serif font-semibold mb-3 sm:mb-4 tracking-wide">Résumé</h3>
               <div className="space-y-2 sm:space-y-3 border-t pt-3 sm:pt-4">
-                <div className="flex justify-between text-sm sm:text-base text-gray-600">
+                <div className="flex justify-between text-sm sm:text-base text-gray-600 font-sans">
                   <span>Sous-total ({state.cart.reduce((sum, item) => sum + item.quantity, 0)} article{state.cart.reduce((sum, item) => sum + item.quantity, 0) > 1 ? 's' : ''})</span>
                   <span>{formatPrice(originalSubtotal)}</span>
                 </div>
                 {discountTotal > 0 && (
-                  <div className="flex justify-between text-sm sm:text-base text-black font-medium">
+                  <div className="flex justify-between text-sm sm:text-base text-black font-sans font-medium">
                     <span>Réduction</span>
                     <span>-{formatPrice(discountTotal)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm sm:text-base text-gray-600">
+                <div className="flex justify-between text-sm sm:text-base text-gray-600 font-sans">
                   <span>Livraison ({DELIVERY_OPTIONS.find((o) => o.id === deliveryOption)?.label})</span>
                   <span>{formatPrice(deliveryFee)}</span>
                 </div>
-                <div className="flex justify-between text-lg sm:text-xl font-bold border-t pt-2 sm:pt-3">
+                <div className="flex justify-between text-lg sm:text-xl font-serif font-bold border-t pt-2 sm:pt-3">
                   <span>Total</span>
                   <span className="text-black">{formatPrice(total)}</span>
                 </div>
@@ -569,12 +576,12 @@ export default function CartPage() {
               <button
                 onClick={handleOrderSubmit}
                 disabled={isLoading || state.cart.length === 0}
-                className={`w-full flex items-center justify-center gap-2 bg-black text-white py-3.5 sm:py-4 text-sm sm:text-base rounded-lg font-medium hover:bg-gray-800 mt-4 sm:mt-6 transition-colors ${isLoading || state.cart.length === 0 ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`w-full flex items-center justify-center gap-2 bg-black text-white py-3.5 sm:py-4 text-sm sm:text-base rounded-lg font-serif font-medium tracking-wide hover:bg-gray-800 mt-4 sm:mt-6 transition-colors ${isLoading || state.cart.length === 0 ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {paymentMethod === 'online' ? <CreditCard className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
                 {isLoading ? 'Traitement...' : paymentMethod === 'online' ? `Payer ${formatPrice(total)}` : 'Commander via WhatsApp'}
               </button>
-              <p className="text-[11px] sm:text-xs text-gray-500 text-center mt-2 sm:mt-3 leading-relaxed">
+              <p className="text-[11px] sm:text-xs text-gray-500 text-center mt-2 sm:mt-3 leading-relaxed font-sans">
                 {paymentMethod === 'online' ? 'Votre commande est confirmée automatiquement dès que le paiement est validé.' : 'Votre commande sera enregistrée et la boutique sera notifiée via WhatsApp.'}
               </p>
             </div>
@@ -588,17 +595,17 @@ export default function CartPage() {
             {!paymentError ? (
               <>
                 <Loader className="w-12 h-12 text-black mx-auto mb-4 animate-spin" />
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Paiement en attente</h2>
-                <p className="text-sm text-gray-600 mb-4">Terminez le paiement dans l'onglet PayDunya qui vient de s'ouvrir. Cette page se met à jour automatiquement.</p>
-                <p className="text-xs text-gray-500 mb-4">Commande {formatOrderNumber(waitingOrderId)}</p>
+                <h2 className="text-xl font-serif font-bold text-gray-900 mb-2 tracking-wide">Paiement en attente</h2>
+                <p className="text-sm text-gray-600 mb-4 font-sans">Terminez le paiement dans l'onglet PayDunya qui vient de s'ouvrir. Cette page se met à jour automatiquement.</p>
+                <p className="text-xs text-gray-500 mb-4 font-sans">Commande {formatOrderNumber(waitingOrderId)}</p>
               </>
             ) : (
               <>
-                <h2 className="text-xl font-bold text-red-700 mb-2">Paiement non confirmé</h2>
-                <p className="text-sm text-gray-600 mb-4">{paymentError}</p>
+                <h2 className="text-xl font-serif font-bold text-red-700 mb-2 tracking-wide">Paiement non confirmé</h2>
+                <p className="text-sm text-gray-600 mb-4 font-sans">{paymentError}</p>
               </>
             )}
-            <button type="button" onClick={closeWaiting} className="text-sm text-gray-500 underline hover:text-gray-700">
+            <button type="button" onClick={closeWaiting} className="text-sm text-gray-500 underline hover:text-gray-700 font-sans">
               {paymentError ? 'Retour au panier' : 'Annuler'}
             </button>
           </div>
@@ -609,18 +616,18 @@ export default function CartPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 text-center max-w-sm sm:max-w-md w-full animate-in fade-in zoom-in duration-300">
             <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-black mx-auto mb-3 sm:mb-4" />
-            <h2 className="text-xl sm:text-2xl font-bold text-black mb-2">
+            <h2 className="text-xl sm:text-2xl font-serif font-bold text-black mb-2 tracking-wide">
               {paidOnline ? 'Paiement confirmé 🎉' : 'Commande confirmée 🎉'}
             </h2>
-            <p className="text-sm sm:text-base text-gray-600 mb-2">
+            <p className="text-sm sm:text-base text-gray-600 mb-2 font-sans">
               Merci {firstName}, votre commande <strong>{orderNumber}</strong> {paidOnline ? 'est payée et enregistrée.' : 'a bien été enregistrée.'}
             </p>
             {paidOnline ? (
-              <p className="text-xs sm:text-sm text-gray-600 mb-4">La boutique va préparer votre commande et vous contactera.</p>
+              <p className="text-xs sm:text-sm text-gray-600 mb-4 font-sans">La boutique va préparer votre commande et vous contactera.</p>
             ) : (
               <>
-                <p className="text-xs sm:text-sm text-gray-600 mb-4">La boutique a été notifiée via WhatsApp. Elle vous contactera rapidement.</p>
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs sm:text-sm text-gray-800">
+                <p className="text-xs sm:text-sm text-gray-600 mb-4 font-sans">La boutique a été notifiée via WhatsApp. Elle vous contactera rapidement.</p>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs sm:text-sm text-gray-800 font-sans">
                   📱 Si WhatsApp ne s'est pas ouvert automatiquement, vérifiez que les pop-ups sont autorisés.
                 </div>
               </>
