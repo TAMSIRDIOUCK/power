@@ -1,42 +1,17 @@
 // src/components/customer/ShopPage.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // 👈 Ajouté pour la redirection
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { Product } from '../../types';
 import ProductDetailPage from './ProductDetailPage';
 
 export default function ShopPage() {
-  const { state, dispatch } = useApp();
+  const { state } = useApp();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const navigate = useNavigate(); // 👈 Ajouté
+  const navigate = useNavigate();
 
   const handleViewDetails = (product: Product) => {
     setSelectedProduct(product);
-  };
-
-  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
-    e.stopPropagation();
-    const alreadyInCart = state.cart.some((item) => item.productId === product.id);
-    if (alreadyInCart) return;
-
-    const defaultVariant = product.variants?.[0] || {
-      id: `${product.id}-default`,
-      size: 'Unique',
-      color: 'Standard',
-      stock: 10,
-      sku: `${product.id}-default`,
-    };
-
-    dispatch({
-      type: 'ADD_TO_CART',
-      payload: {
-        productId: product.id,
-        variantId: defaultVariant.id,
-        quantity: 1,
-        product: product,
-        variant: defaultVariant,
-      },
-    });
   };
 
   if (selectedProduct) {
@@ -44,7 +19,6 @@ export default function ShopPage() {
       <ProductDetailPage
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
-        // 👇 Ajout de la prop manquante pour corriger l'erreur TypeScript
         onGoToCart={() => {
           setSelectedProduct(null);
           navigate('/cart');
@@ -74,7 +48,7 @@ export default function ShopPage() {
                 <img
                   src={product.images?.[0] || '/images/placeholder.jpg'}
                   alt={product.name}
-                  className="w-full h-full object-cover" 
+                  className="w-full h-full object-cover"
                 />
               </div>
               <h3 className="text-sm sm:text-base font-semibold text-gray-800 mt-2 truncate">
@@ -83,12 +57,6 @@ export default function ShopPage() {
               <p className="text-gray-800 font-medium mb-2 text-sm sm:text-base mt-auto pt-2">
                 {new Intl.NumberFormat('fr-FR').format(product.price)} F CFA
               </p>
-              <button
-                onClick={(e) => handleAddToCart(e, product)}
-                className="bg-black text-white py-1.5 sm:py-2 px-3 rounded-lg hover:bg-gray-800 transition text-sm"
-              >
-                Ajouter au panier
-              </button>
             </div>
           ))}
         </div>

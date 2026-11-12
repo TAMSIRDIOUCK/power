@@ -6,7 +6,6 @@ import {
   Wallet, ArrowDownToLine
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
-import { FunctionsHttpError } from '@supabase/supabase-js';
 import AddProductForm from './AddProductForm';
 import { Product } from '../../types';
 import { convertSupabaseProductToProduct } from '../../context/AppContext';
@@ -36,11 +35,14 @@ interface Order {
   order_items: OrderItem[];
 }
 
-const VENDOR_WITHDRAW_PHONE = "704776258";
-const VENDOR_WITHDRAW_MODE = "wave-senegal";
-
 const PAYDUNYA_FEE_PERCENT = 0.02;
-const DELIVERY_FEE = 1000;
+const MIN_PAYOUT_AMOUNT = 500;
+
+// 👇 SEULEMENT WAVE ET ORANGE MONEY 👇
+const PAYOUT_MODES = [
+  { value: 'orange-money-senegal', label: 'Orange Money' },
+  { value: 'wave-senegal', label: 'Wave' },
+];
 
 const formatPrice = (price: number) =>
   `${new Intl.NumberFormat('fr-FR').format(price)} F CFA`;
@@ -67,6 +69,12 @@ export default function VendorDashboard() {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  // États pour le retrait
+  const [withdrawPhone, setWithdrawPhone] = useState('778677650');
+  const [withdrawMode, setWithdrawMode] = useState('orange-money-senegal');
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [withdrawSuccess, setWithdrawSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -156,12 +164,12 @@ export default function VendorDashboard() {
     product.variants.reduce((sum, v) => sum + v.stock, 0);
 
   const onlinePaidOrders = orders.filter(o => o.is_paid && o.payment_method === 'online');
-  const totalOnlineBrut = onlinePaidOrders.reduce((sum, o) => sum + o.total + DELIVERY_FEE, 0);
+  const totalOnlineBrut = onlinePaidOrders.reduce((sum, o) => sum + o.total, 0);
   const totalOnlineFees = totalOnlineBrut * PAYDUNYA_FEE_PERCENT;
   const totalOnlineNet = totalOnlineBrut - totalOnlineFees;
 
   const codPaidOrders = orders.filter(o => o.is_paid && o.payment_method === 'cod');
-  const totalCod = codPaidOrders.reduce((sum, o) => sum + o.total + DELIVERY_FEE, 0);
+  const totalCod = codPaidOrders.reduce((sum, o) => sum + o.total, 0);
 
   const stats = {
     totalProducts: products.length,
@@ -178,41 +186,46 @@ export default function VendorDashboard() {
     : orders.filter(o => o.status === statusFilter);
 
   const handleWithdraw = async () => {
-    if (totalOnlineNet <= 0) return;
-    
-    if (!confirm(`Confirmer le retrait de ${formatPrice(totalOnlineNet)} vers le ${VENDOR_WITHDRAW_PHONE} ?`)) {
+    setWithdrawError(null);
+    setWithdrawSuccess(null);
+
+    const amount = Math.round(totalOnlineNet);
+    const account = withdrawPhone.replace(/\D/g, '');
+
+    if (!amount || amount < MIN_PAYOUT_AMOUNT) {
+      setWithdrawError(`Le montant minimum de retrait est ${MIN_PAYOUT_AMOUNT} CFA`);
+      return;
+    }
+    if (!/^\d{6,12}$/.test(account)) {
+      setWithdrawError('Numéro de compte invalide (sans indicatif pays)');
       return;
     }
 
     setIsWithdrawing(true);
 
     try {
+      // 👇 APPEL À LA FONCTION QUI EXISTE "paydunya-payout" 👇
       const { data, error } = await supabase.functions.invoke('paydunya-payout', {
         body: {
-          amount: Math.round(totalOnlineNet),
-          phone: VENDOR_WITHDRAW_PHONE,
-          withdraw_mode: VENDOR_WITHDRAW_MODE,
+          amount: amount,
+          phone: account,              // 👈 Paramètre attendu par paydunya-payout
+          withdraw_mode: withdrawMode, // 👈 Paramètre attendu par paydunya-payout
         },
       });
 
       if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (data?.error) throw new Error(data.error);
 
-      alert(`✅ Transfert réussi ! ${formatPrice(totalOnlineNet)} ont été envoyés sur votre compte.`);
+      setWithdrawSuccess(`✅ ${amount.toLocaleString()} CFA envoyés avec succès !`);
       fetchOrders();
 
     } catch (err: any) {
       console.error("Erreur retrait:", err);
       
-      if (err instanceof FunctionsHttpError) {
-        try {
-          const errorBody = await err.context.json();
-          alert(`❌ Erreur PayDunya : ${errorBody.error || "Erreur inconnue"}`);
-        } catch {
-          alert(`❌ Erreur : ${err.message}`);
-        }
+      if (err.message?.includes('Failed to send') || err.name === 'FunctionsFetchError') {
+        setWithdrawError(`❌ Impossible de joindre la fonction "paydunya-payout".\nVérifiez sur Supabase qu'elle existe et qu'elle est déployée.`);
       } else {
-        alert(`❌ Erreur : ${err.message || "Impossible d'effectuer le transfert."}`);
+        setWithdrawError(err.message || "Impossible d'effectuer le transfert.");
       }
     } finally {
       setIsWithdrawing(false);
@@ -240,11 +253,9 @@ export default function VendorDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 👇 Padding réduit sur mobile (px-2) 👇 */}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
         <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-black">Tableau de Bord</h1>
 
-        {/* Tabs */}
         <div className="mb-6 flex gap-4 sm:gap-6 border-b overflow-x-auto whitespace-nowrap">
           {tabs.map(tab => (
             <button
@@ -268,7 +279,6 @@ export default function VendorDashboard() {
 
         {activeTab === 'overview' && (
           <div className="space-y-6 sm:space-y-8">
-            {/* Cartes de stats : 2 colonnes sur mobile, 4 sur PC */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
               <StatCard title="Produits"         value={stats.totalProducts}          icon={Package}      />
               <StatCard title="Commandes"         value={stats.totalOrders}            icon={ShoppingCart} />
@@ -277,7 +287,6 @@ export default function VendorDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              {/* Carte Paiements en ligne */}
               <div className="bg-white p-4 sm:p-6 rounded-xl shadow border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base sm:text-lg font-bold text-black flex items-center gap-2">
@@ -285,7 +294,7 @@ export default function VendorDashboard() {
                   </h2>
                   <span className="text-[10px] sm:text-xs font-semibold bg-gray-100 text-black px-2 py-1 rounded">PayDunya</span>
                 </div>
-                <div className="space-y-2 text-xs sm:text-sm mb-6">
+                <div className="space-y-2 text-xs sm:text-sm mb-4">
                   <div className="flex justify-between text-gray-500">
                     <span>Chiffre d'affaires brut</span>
                     <span>{formatPrice(stats.totalOnlineBrut)}</span>
@@ -299,7 +308,46 @@ export default function VendorDashboard() {
                     <span>{formatPrice(stats.totalOnlineNet)}</span>
                   </div>
                 </div>
-                {/* 👇 Bouton plus grand sur mobile pour être cliquable au doigt 👇 */}
+
+                <div className="space-y-2 mb-4 border-t border-gray-100 pt-4">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Mode de retrait</label>
+                    <select
+                      value={withdrawMode}
+                      onChange={(e) => setWithdrawMode(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-black text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    >
+                      {PAYOUT_MODES.map(m => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Numéro de retrait (sans indicatif)</label>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      value={withdrawPhone}
+                      onChange={(e) => setWithdrawPhone(e.target.value.replace(/\D/g, ''))}
+                      placeholder="771234567"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-black text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    />
+                  </div>
+                </div>
+
+                {withdrawError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-2.5 flex items-start gap-2 text-xs mb-3">
+                    <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span className="break-words whitespace-pre-line">{withdrawError}</span>
+                  </div>
+                )}
+                {withdrawSuccess && (
+                  <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-2.5 flex items-center gap-2 text-xs mb-3">
+                    <CheckCircle className="w-4 h-4 shrink-0" />
+                    <span className="break-words">{withdrawSuccess}</span>
+                  </div>
+                )}
+
                 <button
                   onClick={handleWithdraw}
                   disabled={stats.totalOnlineNet <= 0 || isWithdrawing}
@@ -312,12 +360,8 @@ export default function VendorDashboard() {
                   <ArrowDownToLine className="w-5 h-5" />
                   {isWithdrawing ? 'Traitement...' : 'Récupérer mon argent'}
                 </button>
-                <p className="text-[10px] sm:text-xs text-gray-400 text-center mt-3">
-                  Vers le numéro : {VENDOR_WITHDRAW_PHONE}
-                </p>
               </div>
 
-              {/* Carte Paiements à la livraison */}
               <div className="bg-white p-4 sm:p-6 rounded-xl shadow border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base sm:text-lg font-bold text-black flex items-center gap-2">
@@ -369,7 +413,6 @@ export default function VendorDashboard() {
 
                   return (
                     <div key={order.id} className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                      {/* 👇 Mise en page mobile : les éléments s'empilent 👇 */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 py-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExpandedOrder(isExpanded ? null : order.id)}>
                         
                         <div className="flex-1 min-w-0 flex justify-between items-start">
@@ -378,7 +421,7 @@ export default function VendorDashboard() {
                             <p className="text-xs text-gray-400">{order.phone}</p>
                           </div>
                           <div className="text-right sm:hidden">
-                             <p className="font-bold text-gray-800 text-sm">{formatPrice(order.total + DELIVERY_FEE)}</p>
+                             <p className="font-bold text-gray-800 text-sm">{formatPrice(order.total)}</p>
                              <p className="text-[10px] text-gray-500">{formatDate(order.created_at)}</p>
                           </div>
                         </div>
@@ -392,10 +435,9 @@ export default function VendorDashboard() {
                         </div>
 
                         <div className="hidden sm:block font-bold text-gray-800 w-28 shrink-0">
-                          {formatPrice(order.total + DELIVERY_FEE)}
+                          {formatPrice(order.total)}
                         </div>
 
-                        {/* Badges empilés sur mobile */}
                         <div className="flex flex-wrap items-center gap-2 sm:gap-2">
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] sm:text-xs font-medium border ${
                             isOnline 
@@ -426,7 +468,6 @@ export default function VendorDashboard() {
                           {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </div>
                         
-                        {/* Indicateur visuel sur mobile */}
                         <div className="flex justify-center sm:hidden mt-2 text-gray-400">
                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                         </div>
@@ -497,13 +538,9 @@ export default function VendorDashboard() {
                                 <span>Sous-total</span>
                                 <span>{formatPrice(order.total)}</span>
                               </div>
-                              <div className="flex justify-between text-gray-500">
-                                <span>Livraison</span>
-                                <span>{formatPrice(DELIVERY_FEE)}</span>
-                              </div>
                               <div className="flex justify-between font-bold text-black border-t pt-1">
                                 <span>Total</span>
-                                <span>{formatPrice(order.total + DELIVERY_FEE)}</span>
+                                <span>{formatPrice(order.total)}</span>
                               </div>
                             </div>
                           </div>

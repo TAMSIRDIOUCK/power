@@ -1,6 +1,6 @@
 // src/components/customer/ProductDetailPage.tsx
 import React, { useState } from 'react';
-import { ArrowLeft, ShoppingCart, Minus, Plus, CreditCard, Tag } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, CreditCard, Tag } from 'lucide-react';
 import { Product } from '../../types';
 import { useApp } from '../../context/AppContext';
 
@@ -78,7 +78,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
       <div className="max-w-6xl mx-auto px-4 py-8">
         <button
           onClick={onClose}
-          className="flex items-center text-black hover:text-gray-600 transition-colors mb-6"
+          className="flex items-center text-black hover:text-gray-600 transition-colors mb-6 font-serif"
         >
           <ArrowLeft className="w-5 h-5 mr-2" />
           Retour aux produits
@@ -119,18 +119,20 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
             {/* Product Info */}
             <div className="space-y-6">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
-                <p className="text-gray-600 leading-relaxed text-sm md:text-base">
+                <h1 className="text-3xl font-serif font-bold text-gray-900 mb-2 tracking-wide">
+                  {product.name}
+                </h1>
+                <p className="text-gray-600 leading-relaxed text-sm md:text-base font-sans">
                   {product.description}
                 </p>
               </div>
 
               <div>
-                <div className="text-3xl font-bold text-black">
+                <div className="text-3xl font-serif font-bold text-black">
                   {formatPrice(product.price)}
                 </div>
                 {hasPromo && (
-                  <p className="mt-3 flex items-start gap-2 text-sm text-black bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                  <p className="mt-3 flex items-start gap-2 text-sm text-black bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 font-sans">
                     <Tag className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <span>
                       {product.discountPercent} % de réduction sur ce produit avec un code promo de la
@@ -142,13 +144,13 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
 
               {/* Taille */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Taille</h3>
+                <h3 className="text-lg font-serif font-medium text-gray-900 mb-3">Taille</h3>
                 <div className="flex flex-wrap gap-2">
                   {availableSizes.map(size => (
                     <button
                       key={size}
                       onClick={() => updateVariant(size)}
-                      className={`px-4 py-2 border rounded-xl font-medium transition-colors ${
+                      className={`px-4 py-2 border rounded-xl font-sans font-medium transition-colors ${
                         selectedVariant.size === size
                           ? 'border-black bg-gray-50 text-black'
                           : 'border-gray-300 text-gray-700 hover:border-gray-400'
@@ -162,13 +164,13 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
 
               {/* Couleur */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Couleur</h3>
+                <h3 className="text-lg font-serif font-medium text-gray-900 mb-3">Couleur</h3>
                 <div className="flex flex-wrap gap-2">
                   {availableColors.map(color => (
                     <button
                       key={color}
                       onClick={() => updateVariant(undefined, color)}
-                      className={`px-4 py-2 border rounded-xl font-medium transition-colors ${
+                      className={`px-4 py-2 border rounded-xl font-sans font-medium transition-colors ${
                         selectedVariant.color === color
                           ? 'border-black bg-gray-50 text-black'
                           : 'border-gray-300 text-gray-700 hover:border-gray-400'
@@ -182,7 +184,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
 
               {/* Quantité */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Quantité</h3>
+                <h3 className="text-lg font-serif font-medium text-gray-900 mb-3">Quantité</h3>
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -190,7 +192,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
                   >
                     <Minus className="w-4 h-4" />
                   </button>
-                  <span className="px-4 py-2 border border-gray-300 rounded-lg font-medium">
+                  <span className="px-4 py-2 border border-gray-300 rounded-lg font-sans font-medium">
                     {quantity}
                   </span>
                   <button
@@ -201,7 +203,7 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-gray-500 mt-2 font-sans">
                   Stock disponible: {selectedVariant.stock}
                 </p>
               </div>
@@ -211,19 +213,19 @@ export default function ProductDetailPage({ product, onClose, onGoToCart }: Prod
                 <button
                   onClick={handleAddToCart}
                   disabled={selectedVariant.stock === 0}
-                  className="w-full bg-black text-white py-4 rounded-xl font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="w-full bg-black text-white py-4 rounded-xl font-serif font-semibold tracking-wide hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
-                  <ShoppingCart className="w-5 h-5 mr-2" />
                   {selectedVariant.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}
                 </button>
 
                 <button
                   onClick={handleBuyNow}
                   disabled={selectedVariant.stock === 0}
-                  className="w-full border-2 border-black text-black py-4 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  style={{ backgroundColor: '#14532d' }}
+                  className="w-full text-white py-4 rounded-xl font-serif font-semibold tracking-wide transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center hover:brightness-90"
                 >
                   <CreditCard className="w-5 h-5 mr-2" />
-                  Acheter
+                  Acheter maintenant
                 </button>
               </div>
             </div>

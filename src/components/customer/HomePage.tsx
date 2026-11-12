@@ -1,6 +1,6 @@
 // src/components/customer/HomePage.tsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // ← AJOUT
+import { useNavigate } from 'react-router-dom';
 import ProductDetailPage from './ProductDetailPage';
 import { supabase } from '../../lib/supabaseClient';
 import { useApp, convertSupabaseProductToProduct } from '../../context/AppContext';
@@ -10,8 +10,8 @@ export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('tous');
-  const { state, dispatch } = useApp();
-  const navigate = useNavigate(); // ← AJOUT
+  const { dispatch } = useApp();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -46,46 +46,11 @@ export default function HomePage() {
     setSelectedProduct(product);
   };
 
-  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
-    e.stopPropagation();
-
-    const alreadyInCart = state.cart.some(
-      (item) => item.productId === product.id
-    );
-
-    if (alreadyInCart) {
-      console.log(`Produit déjà dans le panier: ${product.name}`);
-      return;
-    }
-
-    const defaultVariant = product.variants?.[0] || {
-      id: `${product.id}-default`,
-      size: 'Unique',
-      color: 'Standard',
-      stock: product.variants.reduce((sum, v) => sum + v.stock, 0),
-      sku: `${product.id}-default`,
-    };
-
-    dispatch({
-      type: 'ADD_TO_CART',
-      payload: {
-        productId: product.id,
-        variantId: defaultVariant.id,
-        quantity: 1,
-        product: product,
-        variant: defaultVariant,
-      },
-    });
-
-    console.log(`Ajout au panier: ${product.name}`);
-  };
-
   if (selectedProduct) {
     return (
       <ProductDetailPage
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
-        // 👇 AJOUT : seul le bouton "Acheter" de la fiche produit déclenche cette action
         onGoToCart={() => {
           setSelectedProduct(null);
           navigate('/cart');
@@ -190,13 +155,6 @@ export default function HomePage() {
                 <p className="text-[#1A1A1A] font-bold mb-3 text-sm sm:text-base font-sans">
                   {new Intl.NumberFormat('fr-FR').format(product.price)} F CFA
                 </p>
-
-                <button
-                  onClick={(e) => handleAddToCart(e, product)}
-                  className="mt-auto bg-black text-white py-1.5 sm:py-2 px-3 sm:px-4 rounded-full hover:bg-gray-800 transition text-sm sm:text-base font-sans"
-                >
-                  Ajouter au panier
-                </button>
               </div>
             ))}
           </div>

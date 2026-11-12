@@ -1,6 +1,6 @@
 // src/components/customer/CartPage.tsx
 import { useState, useEffect } from 'react';
-import { Plus, Minus, Trash2, CheckCircle, MessageCircle, Tag, X, CreditCard, Loader } from 'lucide-react';
+import { Plus, Minus, Trash2, CheckCircle, MessageCircle, Tag, X, CreditCard, Loader, Truck } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabaseClient';
 import { Product } from '../../types';
@@ -10,6 +10,13 @@ const VENDOR_WHATSAPP_NUMBER = '221711523274';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const PAYMENT_POLL_MS = 4000;
 const PAYMENT_MAX_ATTEMPTS = 45;
+
+const DELIVERY_OPTIONS = [
+  { id: 'dakar', label: 'Dakar', fee: 2000 },
+  { id: 'region', label: 'Région', fee: 5000 },
+] as const;
+
+type DeliveryOptionId = typeof DELIVERY_OPTIONS[number]['id'];
 
 const normalizeCode = (code: string) => code.trim().toUpperCase().replace(/\s+/g, '');
 const formatOrderNumber = (id: string | number) =>
@@ -23,6 +30,7 @@ export default function CartPage() {
   const [orderNumber, setOrderNumber] = useState<string>('');
 
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('online');
+  const [deliveryOption, setDeliveryOption] = useState<DeliveryOptionId>('dakar');
   const [waitingOrderId, setWaitingOrderId] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState('');
   const [paidOnline, setPaidOnline] = useState(false);
@@ -34,7 +42,6 @@ export default function CartPage() {
   const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
-  const [region, setRegion] = useState('');
 
   const [promoInput, setPromoInput] = useState('');
   const [appliedCodes, setAppliedCodes] = useState<string[]>([]);
@@ -42,6 +49,8 @@ export default function CartPage() {
 
   const formatPrice = (price: number) => new Intl.NumberFormat('fr-FR').format(price) + ' F CFA';
   const country = COUNTRIES.find((c) => c.code === countryCode);
+
+  const deliveryFee = DELIVERY_OPTIONS.find((o) => o.id === deliveryOption)?.fee ?? 0;
 
   const getDiscountPercent = (product: Product): number => {
     const percent = product.discountPercent ?? 0;
@@ -82,7 +91,7 @@ export default function CartPage() {
   const originalSubtotal = state.cart.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0);
   const subtotal = state.cart.reduce((sum, item) => sum + getUnitPrice(item.product) * item.quantity, 0);
   const discountTotal = originalSubtotal - subtotal;
-  const total = subtotal;
+  const total = subtotal + deliveryFee;
 
   const hasInvalidWholesale = state.cart.some(
     (item) =>
@@ -100,28 +109,7 @@ export default function CartPage() {
 
   const removeItem = (cartItemId: string) => dispatch({ type: 'REMOVE_FROM_CART', payload: cartItemId });
 
-  const updateVariant = (cartItemId: string, newSize: string, newColor: string) => {
-    const cartItem = state.cart.find((item) => item.cartItemId === cartItemId);
-    if (!cartItem || !cartItem.product) return;
-    const newVariant = cartItem.product.variants.find((v) => v.size === newSize && v.color === newColor);
-    if (newVariant && newVariant.stock >= cartItem.quantity) {
-      dispatch({ type: 'REMOVE_FROM_CART', payload: cartItemId });
-      dispatch({
-        type: 'ADD_TO_CART',
-        payload: {
-          productId: cartItem.product.id,
-          variantId: newVariant.id,
-          product: cartItem.product,
-          variant: newVariant,
-          quantity: cartItem.quantity,
-        },
-      });
-    } else {
-      alert("Cette variante n'est pas disponible en stock suffisant.");
-    }
-  };
-
-  const fullAddress = () => [address, city, region, country?.name].filter(Boolean).join(', ');
+  const fullAddress = () => [address, city, country?.name].filter(Boolean).join(', ');
 
   const handlePaid = (orderId: string) => {
     setOrderNumber(formatOrderNumber(orderId));
@@ -186,7 +174,8 @@ export default function CartPage() {
           phone,
           address: fullAddress(),
           total,
-          delivery_fee: 0,
+          delivery_fee: deliveryFee,
+          delivery_option: deliveryOption,
           is_paid: false,
           status,
           payment_method: method,
@@ -233,7 +222,7 @@ export default function CartPage() {
     lines.push(`Téléphone : ${phone}`);
     if (email) lines.push(`Email : ${email}`);
     lines.push(`Pays : ${country?.name ?? ''}`);
-    lines.push(`Adresse : ${[address, city, region].filter(Boolean).join(', ')}`);
+    lines.push(`Adresse : ${[address, city].filter(Boolean).join(', ')}`);
     lines.push('');
     lines.push('🛒 *ARTICLES*');
 
@@ -252,6 +241,7 @@ export default function CartPage() {
       lines.push(`🏷️ Codes promo : ${appliedCodes.join(', ')}`);
       lines.push(`Réduction : -${formatPrice(discountTotal)}`);
     }
+    lines.push(`🚚 Livraison (${DELIVERY_OPTIONS.find((o) => o.id === deliveryOption)?.label}) : ${formatPrice(deliveryFee)}`);
     lines.push(`💰 *TOTAL : ${formatPrice(total)}*`);
     lines.push('');
     lines.push('💳 Paiement à la livraison (espèces)');
@@ -384,11 +374,8 @@ export default function CartPage() {
             )}
 
             {state.cart.map((item) => {
-              // 👇 SÉCURITÉ ANTI-CRASH AJOUTÉE ICI 👇
               if (!item || !item.product) return null;
 
-              const availableSizes = [...new Set(item.product.variants?.filter((v) => v.stock > 0 && v.size).map((v) => v.size) || [])];
-              const availableColors = [...new Set(item.product.variants?.filter((v) => v.stock > 0 && v.color).map((v) => v.color) || [])];
               const percent = getDiscountPercent(item.product);
               const unitPrice = getUnitPrice(item.product);
 
@@ -404,6 +391,13 @@ export default function CartPage() {
                         <div>
                           <h3 className="text-lg sm:text-xl font-semibold text-gray-900">{item.product.name}</h3>
                           <p className="text-gray-600 text-sm line-clamp-2 mt-1">{item.product.description}</p>
+                          {(item.variant?.size || item.variant?.color) && (
+                            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                              {item.variant?.size && <>Taille : <strong>{item.variant.size}</strong></>}
+                              {item.variant?.size && item.variant?.color && ' • '}
+                              {item.variant?.color && <>Couleur : <strong>{item.variant.color}</strong></>}
+                            </p>
+                          )}
                         </div>
                         <div className="sm:text-right whitespace-nowrap">
                           {percent > 0 && (
@@ -414,33 +408,6 @@ export default function CartPage() {
                           )}
                           <p className="text-xl sm:text-2xl font-bold text-black">{formatPrice(unitPrice)}</p>
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                        {availableSizes.length > 0 && (
-                          <div>
-                            <label className="block text-xs sm:text-sm font-medium mb-1">Taille</label>
-                            <select
-                              value={item.variant?.size || ''}
-                              onChange={(e) => updateVariant(item.cartItemId, e.target.value, item.variant?.color || '')}
-                              className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none"
-                            >
-                              {availableSizes.map((size) => <option key={size} value={size}>{size}</option>)}
-                            </select>
-                          </div>
-                        )}
-                        {availableColors.length > 0 && (
-                          <div>
-                            <label className="block text-xs sm:text-sm font-medium mb-1">Couleur</label>
-                            <select
-                              value={item.variant?.color || ''}
-                              onChange={(e) => updateVariant(item.cartItemId, item.variant?.size || '', e.target.value)}
-                              className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none"
-                            >
-                              {availableColors.map((color) => <option key={color} value={color}>{color}</option>)}
-                            </select>
-                          </div>
-                        )}
                       </div>
 
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
@@ -487,20 +454,34 @@ export default function CartPage() {
                 <input type="tel" placeholder="Téléphone *" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
                 <input type="email" placeholder="Email (optionnel)" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
                 
-                <div>
+                {/* Conteneur stable pour CountrySelect : évite les erreurs insertBefore */}
+                <div className="w-full">
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Pays *</label>
                   <CountrySelect value={countryCode} onChange={setCountryCode} />
                 </div>
 
                 <input type="text" placeholder="Adresse *" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
-                <div className="grid grid-cols-2 gap-3">
-                  <input type="text" placeholder="Ville *" value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
-                  <input type="text" placeholder="Région" value={region} onChange={(e) => setRegion(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
-                </div>
+                <input type="text" placeholder="Ville *" value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none" />
               </div>
 
-              <div className="mb-4 sm:mb-6 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-800">
-                🚚 Les frais de livraison seront convenus directement avec la boutique après validation de votre commande.
+              {/* Mode de livraison */}
+              <div className="mb-4 sm:mb-6">
+                <h4 className="text-base sm:text-lg font-medium mb-2 sm:mb-3 flex items-center gap-2">
+                  <Truck className="w-4 h-4" /> Mode de livraison
+                </h4>
+                <div className="space-y-2">
+                  {DELIVERY_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setDeliveryOption(option.id)}
+                      className={`w-full flex items-center justify-between p-3 border rounded-lg transition ${deliveryOption === option.id ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                      <span className="text-sm sm:text-base font-medium">{option.label}</span>
+                      <span className="text-sm sm:text-base font-semibold text-black">{formatPrice(option.fee)}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="mb-4 sm:mb-6">
@@ -548,11 +529,11 @@ export default function CartPage() {
                 </div>
 
                 {promoMessage && (
-                  <p className={`text-xs sm:text-sm mt-2 ${promoMessage.type === 'success' ? 'text-black font-medium' : 'text-red-600'}`}>{promoMessage.text}</p>
+                  <p key={`promo-${promoMessage.type}-${promoMessage.text}`} className={`text-xs sm:text-sm mt-2 ${promoMessage.type === 'success' ? 'text-black font-medium' : 'text-red-600'}`}>{promoMessage.text}</p>
                 )}
 
                 {appliedCodes.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
+                  <div key="applied-codes" className="flex flex-wrap gap-2 mt-3">
                     {appliedCodes.map((code) => (
                       <span key={code} className="inline-flex items-center gap-1 text-xs font-medium bg-gray-200 text-black px-2.5 py-1 rounded-full">
                         {code}
@@ -575,6 +556,10 @@ export default function CartPage() {
                     <span>-{formatPrice(discountTotal)}</span>
                   </div>
                 )}
+                <div className="flex justify-between text-sm sm:text-base text-gray-600">
+                  <span>Livraison ({DELIVERY_OPTIONS.find((o) => o.id === deliveryOption)?.label})</span>
+                  <span>{formatPrice(deliveryFee)}</span>
+                </div>
                 <div className="flex justify-between text-lg sm:text-xl font-bold border-t pt-2 sm:pt-3">
                   <span>Total</span>
                   <span className="text-black">{formatPrice(total)}</span>
