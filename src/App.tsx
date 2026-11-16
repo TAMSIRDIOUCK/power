@@ -63,16 +63,7 @@ const AIChatBox: React.FC = () => {
   return (
     <>
       {/* Icône flottante WhatsApp */}
-      <a
-        href="https://wa.me/221711523274"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed right-6 bottom-6 z-50 bg-green-500 text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition-all"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" className="w-6 h-6" fill="currentColor">
-          <path d="M16 0C7.163 0 0 7.163 0 16c0 2.847.746 5.65 2.163 8.102L.001 32l8.188-2.14A15.92 15.92 0 0016 32c8.837 0 16-7.163 16-16S24.837 0 16 0zm8.577 23.423c-.363.998-2.12 1.91-2.92 2.03-.8.12-1.56.363-5.26-1.12-4.44-1.75-7.23-6.06-7.45-6.34-.22-.28-1.78-2.37-1.78-4.52 0-2.15 1.13-3.22 1.53-3.67.4-.45.88-.56 1.18-.56.3 0 .6 0 .86.01.28.01.65-.1 1.02.77.363.88 1.23 3.02 1.34 3.24.11.22.18.5.04.8-.13.27-.2.48-.4.74-.2.27-.42.6-.6.8-.2.2-.4.43-.17.84.23.4 1.02 1.68 2.2 2.73 1.51 1.34 2.78 1.75 3.18 1.95.4.2.63.17.86-.1.23-.27.98-1.14 1.24-1.54.27-.4.5-.33.86-.2.36.1 2.3 1.08 2.7 1.28.4.2.67.3.77.47.1.17.1 1.03-.26 2.03z" />
-        </svg>
-      </a>
+     
 
       {open && (
         <div className="fixed right-6 bottom-20 w-80 bg-white border rounded-xl shadow-lg z-50 flex flex-col overflow-hidden">

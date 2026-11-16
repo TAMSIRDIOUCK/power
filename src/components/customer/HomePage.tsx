@@ -78,44 +78,7 @@ export default function HomePage() {
       </div>
 
       {/* Produits en vedette (défilement) */}
-      <section id="featured-products" className="py-8 sm:py-12 bg-white border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#1A1A1A] mb-8 text-center tracking-wide">
-            Produits en vedette
-          </h2>
-
-          <div className="overflow-hidden relative">
-            <div
-              className="flex space-x-4 animate-scroll"
-              style={{ animation: 'scroll 8s linear infinite' }}
-            >
-              {products.slice(-10).map((product) => (
-                <div
-                  key={product.id}
-                  className="w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 flex-shrink-0"
-                >
-                  <img
-                    src={product.images?.[0] || '/images/placeholder.jpg'}
-                    alt={product.name}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
-                @keyframes scroll {
-                  0% { transform: translateX(0); }
-                  100% { transform: translateX(-100%); }
-                }
-              `,
-            }}
-          />
-        </div>
-      </section>
+      
 
       {/* Liste des produits */}
       <section id="articles" className="py-8 sm:py-12 bg-white border-t border-gray-100">
