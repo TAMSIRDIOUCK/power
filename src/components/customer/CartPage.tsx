@@ -6,7 +6,6 @@ import { supabase } from '../../lib/supabaseClient';
 import { Product } from '../../types';
 import CountrySelect, { COUNTRIES, DEFAULT_COUNTRY_CODE } from './CountrySelect';
 
-const VENDOR_WHATSAPP_NUMBER = '221711523274';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const PAYMENT_POLL_MS = 4000;
 const PAYMENT_MAX_ATTEMPTS = 45;
@@ -93,8 +92,10 @@ export default function CartPage() {
   const originalSubtotal = state.cart.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0);
   const subtotal = state.cart.reduce((sum, item) => sum + getUnitPrice(item.product) * item.quantity, 0);
   const discountTotal = originalSubtotal - subtotal;
-  // ✅ Total affiché = sous-total produits + livraison
+  // Total affiché = sous-total produits + livraison
   const total = subtotal + deliveryFee;
+
+  const cartCount = state.cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const hasInvalidWholesale = state.cart.some(
     (item) =>
@@ -167,19 +168,27 @@ export default function CartPage() {
     window.history.replaceState({}, '', window.location.pathname);
   };
 
+  // Envoi des SMS (client + boutique) via l'Edge Function "notify-order".
+  // Ne bloque jamais la commande : en cas d'échec on log simplement l'erreur.
+  const sendOrderSms = (orderId: string | number) => {
+    if (!SUPABASE_URL) return;
+    fetch(`${SUPABASE_URL}/functions/v1/notify-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ order_id: orderId }),
+    }).catch((e) => console.error('SMS non envoyé:', e));
+  };
+
   const createOrder = async (status: 'pending' | 'awaiting_payment', method: 'cod' | 'online') => {
     const current = DELIVERY_OPTIONS.find((o) => o.id === deliveryOption) ?? DELIVERY_OPTIONS[0];
     const fee = current.fee;
     const computedSubtotal = state.cart.reduce((sum, item) => sum + getUnitPrice(item.product) * item.quantity, 0);
 
-    // ✅ TOTAL = produits + livraison (ex : 1000 + 2000 = 3000)
+    // TOTAL = produits + livraison (ex : 1000 + 2000 = 3000)
     const computedTotal = computedSubtotal + fee;
-
-    console.log('[createOrder]', {
-      subtotal: computedSubtotal, // 1000
-      fee,                        // 2000
-      total: computedTotal,       // 3000
-    });
 
     const { data: orderData, error: orderError } = await supabase
       .from('orders2')
@@ -189,8 +198,8 @@ export default function CartPage() {
           last_name: lastName,
           phone,
           address: fullAddress(),
-          total: computedTotal,   // ✅ 3000 (produit + livraison)
-          delivery_fee: 0,         // ✅ 0 pour éviter tout double comptage ailleurs
+          total: computedTotal,   // produit + livraison
+          delivery_fee: 0,        // 0 pour éviter tout double comptage ailleurs
           is_paid: false,
           status,
           payment_method: method,
@@ -227,55 +236,19 @@ export default function CartPage() {
     return orderData;
   };
 
-  const buildWhatsAppMessage = (numOrder: string): string => {
-    const lines: string[] = [];
-    lines.push('🛍️ *NOUVELLE COMMANDE*');
-    lines.push(`📦 N° : *${numOrder}*`);
-    lines.push('');
-    lines.push('👤 *CLIENT*');
-    lines.push(`Nom : ${firstName} ${lastName}`);
-    lines.push(`Téléphone : ${phone}`);
-    if (email) lines.push(`Email : ${email}`);
-    lines.push(`Pays : ${country?.name ?? ''}`);
-    lines.push(`Adresse : ${[address, city].filter(Boolean).join(', ')}`);
-    lines.push('');
-    lines.push('🛒 *ARTICLES*');
-
-    state.cart.forEach((item, i) => {
-      const percent = getDiscountPercent(item.product);
-      const unit = getUnitPrice(item.product);
-      lines.push(`${i + 1}. ${item.product.name} — x${item.quantity} = ${formatPrice(unit * item.quantity)}${percent > 0 ? ` (-${percent} %)` : ''}`);
-      const details: string[] = [];
-      if (item.variant?.size) details.push(`Taille : ${item.variant.size}`);
-      if (item.variant?.color) details.push(`Couleur : ${item.variant.color}`);
-      if (details.length) lines.push(`   ↳ ${details.join(' | ')}`);
-    });
-
-    lines.push('');
-    if (discountTotal > 0) {
-      lines.push(`🏷️ Codes promo : ${appliedCodes.join(', ')}`);
-      lines.push(`Réduction : -${formatPrice(discountTotal)}`);
-    }
-    lines.push(`🚚 Livraison (${deliveryLabel}) : ${formatPrice(deliveryFee)}`);
-    lines.push(`💰 *TOTAL : ${formatPrice(total)}*`);
-    lines.push('');
-    lines.push('💳 Paiement à la livraison (espèces)');
-    lines.push('');
-    lines.push('Merci de confirmer la réception de cette commande 🙏');
-
-    return lines.join('\n');
-  };
-
   const submitCashOrder = async () => {
     setIsLoading(true);
     try {
       const orderData = await createOrder('pending', 'cod');
       if (!orderData) return;
+
       const numOrder = formatOrderNumber(orderData.id);
       setOrderNumber(numOrder);
       setPaidOnline(false);
-      const whatsappUrl = `https://wa.me/${VENDOR_WHATSAPP_NUMBER}?text=${encodeURIComponent(buildWhatsAppMessage(numOrder))}`;
-      window.open(whatsappUrl, '_blank');
+
+      // SMS de confirmation au client + SMS avec les infos de la commande à la boutique
+      sendOrderSms(orderData.id);
+
       dispatch({ type: 'CLEAR_CART' });
       setShowSuccess(true);
       setTimeout(() => {
@@ -317,9 +290,9 @@ export default function CartPage() {
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/initiate-order-payment`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`, 
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           order_id: orderData.id,
@@ -350,7 +323,7 @@ export default function CartPage() {
       paymentWindow?.close();
       alert(error.message || "Une erreur est survenue lors de l'initiation du paiement.");
     } finally {
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   };
 
@@ -373,10 +346,10 @@ export default function CartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6 sm:py-8">
+    <div translate="no" className="notranslate min-h-screen bg-gray-50 py-6 sm:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-2xl sm:text-3xl font-serif font-bold text-gray-900 mb-6 sm:mb-8 tracking-wide">
-          Mon Panier ({state.cart.reduce((sum, item) => sum + item.quantity, 0)} article{state.cart.reduce((sum, item) => sum + item.quantity, 0) > 1 ? 's' : ''})
+          <span>{`Mon Panier (${cartCount} article${cartCount > 1 ? 's' : ''})`}</span>
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -414,9 +387,12 @@ export default function CartPage() {
                           <p className="text-gray-600 text-sm line-clamp-2 mt-1 font-sans">{item.product.description}</p>
                           {(item.variant?.size || item.variant?.color) && (
                             <p className="text-xs sm:text-sm text-gray-500 mt-1 font-sans">
-                              {item.variant?.size && <>Taille : <strong>{item.variant.size}</strong></>}
-                              {item.variant?.size && item.variant?.color && ' • '}
-                              {item.variant?.color && <>Couleur : <strong>{item.variant.color}</strong></>}
+                              <span>
+                                {[
+                                  item.variant?.size ? `Taille : ${item.variant.size}` : null,
+                                  item.variant?.color ? `Couleur : ${item.variant.color}` : null,
+                                ].filter(Boolean).join(' • ')}
+                              </span>
                             </p>
                           )}
                         </div>
@@ -468,13 +444,13 @@ export default function CartPage() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 sticky top-4 sm:top-8">
               <h3 className="text-lg sm:text-xl font-serif font-semibold mb-4 sm:mb-6 tracking-wide">Informations Client</h3>
-              
+
               <div className="space-y-3 mb-4 sm:mb-6">
                 <input type="text" placeholder="Prénom *" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
                 <input type="text" placeholder="Nom *" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
                 <input type="tel" placeholder="Téléphone *" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
                 <input type="email" placeholder="Email (optionnel)" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-black outline-none font-sans" />
-                
+
                 <div className="w-full">
                   <label className="block text-xs sm:text-sm font-sans font-medium text-gray-700 mb-1">Pays *</label>
                   <CountrySelect value={countryCode} onChange={setCountryCode} />
@@ -549,7 +525,7 @@ export default function CartPage() {
                 </div>
 
                 {promoMessage && (
-                  <p key={`promo-${promoMessage.type}-${promoMessage.text}`} className={`text-xs sm:text-sm mt-2 font-sans ${promoMessage.type === 'success' ? 'text-black font-medium' : 'text-red-600'}`}>{promoMessage.text}</p>
+                  <p key={`promo-${promoMessage.type}-${promoMessage.text}`} className={`text-xs sm:text-sm mt-2 font-sans ${promoMessage.type === 'success' ? 'text-black font-medium' : 'text-red-600'}`}><span>{promoMessage.text}</span></p>
                 )}
 
                 {appliedCodes.length > 0 && (
@@ -567,7 +543,7 @@ export default function CartPage() {
               <h3 className="text-lg sm:text-xl font-serif font-semibold mb-3 sm:mb-4 tracking-wide">Résumé</h3>
               <div className="space-y-2 sm:space-y-3 border-t pt-3 sm:pt-4">
                 <div className="flex justify-between text-sm sm:text-base text-gray-600 font-sans">
-                  <span>Sous-total ({state.cart.reduce((sum, item) => sum + item.quantity, 0)} article{state.cart.reduce((sum, item) => sum + item.quantity, 0) > 1 ? 's' : ''})</span>
+                  <span>{`Sous-total (${cartCount} article${cartCount > 1 ? 's' : ''})`}</span>
                   <span>{formatPrice(originalSubtotal)}</span>
                 </div>
                 {discountTotal > 0 && (
@@ -577,7 +553,7 @@ export default function CartPage() {
                   </div>
                 )}
                 <div className="flex justify-between text-sm sm:text-base text-gray-600 font-sans">
-                  <span>Livraison ({deliveryLabel})</span>
+                  <span>{`Livraison (${deliveryLabel})`}</span>
                   <span>{formatPrice(deliveryFee)}</span>
                 </div>
                 <div className="flex justify-between text-lg sm:text-xl font-serif font-bold border-t pt-2 sm:pt-3">
@@ -591,11 +567,19 @@ export default function CartPage() {
                 disabled={isLoading || state.cart.length === 0}
                 className={`w-full flex items-center justify-center gap-2 bg-black text-white py-3.5 sm:py-4 text-sm sm:text-base rounded-lg font-serif font-medium tracking-wide hover:bg-gray-800 mt-4 sm:mt-6 transition-colors ${isLoading || state.cart.length === 0 ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
-                {paymentMethod === 'online' ? <CreditCard className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
-                {isLoading ? 'Traitement...' : paymentMethod === 'online' ? `Payer ${formatPrice(total)}` : 'Commander via WhatsApp'}
+                <span key={paymentMethod} className="flex items-center justify-center gap-2">
+                  {paymentMethod === 'online' ? <CreditCard className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
+                  <span>
+                    {isLoading ? 'Traitement...' : paymentMethod === 'online' ? `Payer ${formatPrice(total)}` : 'Confirmer la commande'}
+                  </span>
+                </span>
               </button>
               <p className="text-[11px] sm:text-xs text-gray-500 text-center mt-2 sm:mt-3 leading-relaxed font-sans">
-                {paymentMethod === 'online' ? 'Votre commande est confirmée automatiquement dès que le paiement est validé.' : 'Votre commande sera enregistrée et la boutique sera notifiée via WhatsApp.'}
+                <span key={paymentMethod}>
+                  {paymentMethod === 'online'
+                    ? 'Votre commande est confirmée automatiquement dès que le paiement est validé.'
+                    : 'Votre commande sera enregistrée et vous recevrez un SMS de confirmation.'}
+                </span>
               </p>
             </div>
           </div>
@@ -610,16 +594,16 @@ export default function CartPage() {
                 <Loader className="w-12 h-12 text-black mx-auto mb-4 animate-spin" />
                 <h2 className="text-xl font-serif font-bold text-gray-900 mb-2 tracking-wide">Paiement en attente</h2>
                 <p className="text-sm text-gray-600 mb-4 font-sans">Terminez le paiement dans l'onglet PayDunya qui vient de s'ouvrir. Cette page se met à jour automatiquement.</p>
-                <p className="text-xs text-gray-500 mb-4 font-sans">Commande {formatOrderNumber(waitingOrderId)}</p>
+                <p className="text-xs text-gray-500 mb-4 font-sans"><span>{`Commande ${formatOrderNumber(waitingOrderId)}`}</span></p>
               </>
             ) : (
               <>
                 <h2 className="text-xl font-serif font-bold text-red-700 mb-2 tracking-wide">Paiement non confirmé</h2>
-                <p className="text-sm text-gray-600 mb-4 font-sans">{paymentError}</p>
+                <p className="text-sm text-gray-600 mb-4 font-sans"><span>{paymentError}</span></p>
               </>
             )}
             <button type="button" onClick={closeWaiting} className="text-sm text-gray-500 underline hover:text-gray-700 font-sans">
-              {paymentError ? 'Retour au panier' : 'Annuler'}
+              <span>{paymentError ? 'Retour au panier' : 'Annuler'}</span>
             </button>
           </div>
         </div>
@@ -630,20 +614,17 @@ export default function CartPage() {
           <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 text-center max-w-sm sm:max-w-md w-full animate-in fade-in zoom-in duration-300">
             <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-black mx-auto mb-3 sm:mb-4" />
             <h2 className="text-xl sm:text-2xl font-serif font-bold text-black mb-2 tracking-wide">
-              {paidOnline ? 'Paiement confirmé 🎉' : 'Commande confirmée 🎉'}
+              <span>{paidOnline ? 'Paiement confirmé 🎉' : 'Commande confirmée 🎉'}</span>
             </h2>
             <p className="text-sm sm:text-base text-gray-600 mb-2 font-sans">
-              Merci {firstName}, votre commande <strong>{orderNumber}</strong> {paidOnline ? 'est payée et enregistrée.' : 'a bien été enregistrée.'}
+              <span>
+                {`Merci ${firstName}, votre commande ${orderNumber} ${paidOnline ? 'est payée et enregistrée.' : 'a bien été enregistrée.'}`}
+              </span>
             </p>
             {paidOnline ? (
               <p className="text-xs sm:text-sm text-gray-600 mb-4 font-sans">La boutique va préparer votre commande et vous contactera.</p>
             ) : (
-              <>
-                <p className="text-xs sm:text-sm text-gray-600 mb-4 font-sans">La boutique a été notifiée via WhatsApp. Elle vous contactera rapidement.</p>
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs sm:text-sm text-gray-800 font-sans">
-                  📱 Si WhatsApp ne s'est pas ouvert automatiquement, vérifiez que les pop-ups sont autorisés.
-                </div>
-              </>
+              <p className="text-xs sm:text-sm text-gray-600 mb-4 font-sans">Vous allez recevoir un SMS de confirmation. La boutique vous contactera rapidement.</p>
             )}
           </div>
         </div>
